@@ -323,7 +323,57 @@ if [ $db_attempt -gt $max_db_attempts ]; then
 fi
 echo ""
 
-# Step 10: Initialize database schema
+# Step 10: Test backend Python imports before full startup
+echo "Testing backend Python imports and configuration..."
+if ! $COMPOSE_CMD run --rm backend python -c "
+import sys
+import os
+sys.path.insert(0, '/app')
+
+try:
+    # Test critical imports
+    print('Testing imports...')
+    from database import init_database, get_db
+    print('✅ Database imports successful')
+    
+    from routes import auth, aggregator, search, oauth
+    print('✅ Routes imports successful')
+    
+    from models import User, Artist, Album, Track
+    print('✅ Models imports successful')
+    
+    from config import Config
+    print('✅ Config imports successful')
+    
+    print('✅ All critical imports successful')
+    
+except ImportError as e:
+    print(f'❌ IMPORT ERROR: {e}')
+    print('This will prevent the backend from starting.')
+    import traceback
+    traceback.print_exc()
+    sys.exit(1)
+except Exception as e:
+    print(f'❌ CONFIGURATION ERROR: {e}')
+    import traceback
+    traceback.print_exc()
+    sys.exit(1)
+"; then
+    echo "❌ ERROR: Backend import/configuration test failed."
+    echo "The backend will not be able to start with the current code."
+    echo ""
+    echo "Common causes:"
+    echo "  - Missing Python modules or packages"
+    echo "  - Incorrect import paths"
+    echo "  - Circular import dependencies"
+    echo "  - Missing __init__.py files"
+    echo "  - Syntax errors in Python files"
+    echo ""
+    echo "Fix the import errors before continuing with deployment."
+    exit 1
+fi
+
+# Step 11: Initialize database schema
 # The Python script runs in a one-off container to create the necessary tables.
 echo "Initializing database schema using the backend service..."
 if ! $COMPOSE_CMD run --rm backend python -c "
@@ -331,8 +381,8 @@ import sys
 import os
 sys.path.insert(0, '/app')
 
-from backend.database import init_database
-from backend.config import Config
+from database import init_database
+from config import Config
 import logging
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -367,8 +417,6 @@ except Exception as e:
     traceback.print_exc()
     sys.exit(1)
 "; then
-    echo "✅ Database schema initialized."
-else
     echo "❌ ERROR: Database initialization failed."
     echo "Check the backend container's logs for more details with: $COMPOSE_CMD logs backend"
     echo ""
@@ -379,20 +427,66 @@ else
     echo "  - SQLAlchemy model definition errors"
     exit 1
 fi
+echo "✅ Database schema initialized."
 echo ""
 
-# Step 11: Start all services
+# Step 12: Start all services
 # This command starts the frontend and backend services in detached mode.
 echo "Starting all application services..."
 $COMPOSE_CMD up -d
-echo "✅ All services are now running in the background."
+echo "✅ All services started in detached mode."
 echo ""
 
-# Step 12: Wait for services to be ready
+# Step 13: Check for immediate container startup failures
+echo "Checking for immediate container startup failures..."
+sleep 10  # Give containers time to fail if they're going to fail
+
+# Check backend container status
+if ! $COMPOSE_CMD ps backend | grep -q "Up"; then
+    echo "❌ ERROR: Backend container failed to start or crashed immediately."
+    echo ""
+    echo "Backend container status:"
+    $COMPOSE_CMD ps backend
+    echo ""
+    echo "Recent backend logs:"
+    $COMPOSE_CMD logs --tail=30 backend
+    echo ""
+    echo "Common backend startup failures:"
+    echo "  - Python import errors (check imports)"
+    echo "  - Missing dependencies (check requirements.txt)"
+    echo "  - Configuration errors (check .env file)"
+    echo "  - Port conflicts (check if port 8001 is in use)"
+    echo "  - Database connection issues"
+    echo ""
+    echo "Fix the backend issues before the application will work."
+    exit 1
+fi
+
+# Check frontend container status  
+if ! $COMPOSE_CMD ps frontend | grep -q "Up"; then
+    echo "❌ ERROR: Frontend container failed to start or crashed immediately."
+    echo ""
+    echo "Frontend container status:"
+    $COMPOSE_CMD ps frontend
+    echo ""
+    echo "Recent frontend logs:"
+    $COMPOSE_CMD logs --tail=30 frontend
+    echo ""
+    echo "Common frontend startup failures:"
+    echo "  - Node.js dependency issues (check package.json)"
+    echo "  - Build failures (check Vite configuration)"
+    echo "  - Port conflicts (check if port 3001 is in use)"
+    exit 1
+fi
+
+echo "✅ All containers started successfully and are running."
+echo ""
+
+# Step 14: Wait for services to be ready
 echo "Waiting for services to become responsive... This may take a moment."
 sleep 15
 
-# Step 13: Comprehensive health check
+# Step 15: Comprehensive health check
 echo "Performing comprehensive health checks on the running services..."
 
 # Backend health check (PORT 8001)
@@ -414,14 +508,21 @@ done
 
 if [ $attempt -gt $max_attempts ]; then
     echo "❌ ERROR: Backend health check failed after $max_attempts attempts."
+    echo ""
+    echo "Backend container status:"
+    $COMPOSE_CMD ps backend
+    echo ""
+    echo "Recent backend logs:"
+    $COMPOSE_CMD logs --tail=50 backend
+    echo ""
     echo "Common backend issues:"
     echo "  - Python dependencies not installed correctly"
     echo "  - Database connection failed"
     echo "  - Import errors in Python modules"
     echo "  - Port 8001 already in use"
+    echo "  - Backend crashed after startup"
     echo ""
-    echo "Backend logs:"
-    $COMPOSE_CMD logs --tail=50 backend
+    echo "The backend is not responding to health checks."
     exit 1
 fi
 echo ""
@@ -444,12 +545,16 @@ done
 if [ $frontend_attempt -gt $max_frontend_attempts ]; then
     echo "⚠️  WARNING: The frontend may still be starting. Please check manually."
     echo "This is often normal during the first build or if network speeds are slow."
-    echo "Frontend logs:"
+    echo ""
+    echo "Frontend container status:"
+    $COMPOSE_CMD ps frontend
+    echo ""
+    echo "Recent frontend logs:"
     $COMPOSE_CMD logs --tail=30 frontend
 fi
 echo ""
 
-# Step 14: Validate installations after startup
+# Step 16: Validate installations after startup
 # This final check ensures that all critical packages were installed correctly within the containers.
 validate_installations() {
     echo "Validating critical dependency installations inside containers..."
@@ -527,7 +632,7 @@ try {
 
 validate_installations
 
-# Step 15: Additional service tests
+# Step 17: Additional service tests
 echo ""
 echo "Performing additional service tests..."
 
