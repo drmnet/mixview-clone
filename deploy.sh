@@ -333,7 +333,7 @@ sys.path.insert(0, '/app')
 try:
     # Test critical imports
     print('Testing imports...')
-    from database import init_database, get_db
+    from db_package import init_database, get_db
     print('✅ Database imports successful')
     
     from routes import auth, aggregator, search, oauth
@@ -381,7 +381,7 @@ import sys
 import os
 sys.path.insert(0, '/app')
 
-from database import init_database
+from db_package import init_database
 from config import Config
 import logging
 
