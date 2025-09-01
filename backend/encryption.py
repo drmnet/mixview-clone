@@ -25,8 +25,8 @@ class CredentialEncryption:
         
         if key_env:
             try:
-                # If key is provided in environment, decode it
-                return base64.urlsafe_b64decode(key_env.encode())
+                # Fernet expects a base64-encoded key as bytes
+                return key_env.encode()
             except Exception as e:
                 logger.warning(f"Invalid encryption key in environment: {e}")
         
@@ -44,7 +44,10 @@ class CredentialEncryption:
         # Generate the key and encode it properly for Fernet
         key = base64.urlsafe_b64encode(kdf.derive(password))
 
-        logger.warning("Generated new encryption key from SECRET_KEY. Set CREDENTIAL_ENCRYPTION_KEY in environment for consistency and security.")
+        logger.warning(
+            "Generated new encryption key from SECRET_KEY. "
+            "Set CREDENTIAL_ENCRYPTION_KEY in environment for consistency and security."
+        )
         return key
     
     def encrypt_credentials(self, credentials: Dict[str, Any]) -> str:
