@@ -1,4 +1,4 @@
-# Location: mixview/backend/database.py
+# Location: mixview/backend/db_package.py
 # Description: Database connection and session management with fixed imports
 
 from sqlalchemy import create_engine, text

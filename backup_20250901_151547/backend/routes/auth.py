@@ -13,7 +13,7 @@ import logging
 import os
 
 # Fixed imports using absolute imports
-from database import get_db
+from db_package import get_db
 from models import User, Filter
 
 logger = logging.getLogger(__name__)

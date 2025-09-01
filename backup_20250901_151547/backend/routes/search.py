@@ -7,7 +7,7 @@ from typing import Optional, List, Dict, Any
 import logging
 
 # Fixed imports using relative imports
-from database import get_db
+from db_package import get_db
 from routes.auth import get_current_user
 from models import User, Artist, Album, Track
 from user_services import UserSpotifyService, UserLastFMService, UserDiscogsService

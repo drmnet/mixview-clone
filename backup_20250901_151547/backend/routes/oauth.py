@@ -11,7 +11,7 @@ import logging
 import requests
 
 # Fixed imports using relative imports
-from database import get_db
+from db_package import get_db
 from routes.auth import get_current_user
 from models import User
 from user_services import (
