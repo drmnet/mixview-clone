@@ -76,10 +76,9 @@ check_dependencies() {
 
 check_dependencies
 
-# Function to generate a secure random key
-# This generates a 32-byte Base64-encoded string, suitable for encryption keys.
+# Function to generate secure Fernet key
 generate_key() {
-    openssl rand -base64 32
+    python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
 }
 
 # Function to generate a secure JWT secret
