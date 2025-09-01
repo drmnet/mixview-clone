@@ -1,4 +1,4 @@
-﻿# Location: mixview/backend/main.py
+# Location: mixview/backend/main.py
 # Description: Fixed Main FastAPI application entry point with absolute imports
 
 from fastapi import FastAPI, Request
@@ -14,7 +14,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 # Fixed imports - use absolute imports instead of relative
 from routes import auth, aggregator, search, oauth
-from db_package import init_database, test_connection, close_database
+from database import init_database, test_connection, close_database
 from config import Config
 
 # Logging Setup

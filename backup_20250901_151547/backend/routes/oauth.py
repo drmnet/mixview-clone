@@ -1,4 +1,4 @@
-﻿# Location: mixview/backend/routes/oauth.py
+# Location: mixview/backend/routes/oauth.py
 # Description: OAuth routes with fixed imports - COMPLETE VERSION
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -11,7 +11,7 @@ import logging
 import requests
 
 # Fixed imports using relative imports
-from db_package import get_db
+from database import get_db
 from routes.auth import get_current_user
 from models import User
 from user_services import (

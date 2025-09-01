@@ -1,4 +1,4 @@
-﻿# Location: mixview/backend/routes/auth.py
+# Location: mixview/backend/routes/auth.py
 # Description: Authentication routes with fixed imports
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -13,7 +13,7 @@ import logging
 import os
 
 # Fixed imports using absolute imports
-from db_package import get_db
+from database import get_db
 from models import User, Filter
 
 logger = logging.getLogger(__name__)
