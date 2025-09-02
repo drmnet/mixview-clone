@@ -134,24 +134,6 @@ except Exception as e:
     logger.error(f"Failed to load routers: {e}")
 
 # Root endpoint
-
-# Setup status endpoint for first-run detection
-@app.get("/setup/status")
-async def setup_status():
-    """Check if the application requires initial setup"""
-    try:
-        config_status = Config.validate_config()
-        has_services = any(config_status.values())
-        
-        return {
-            "requires_setup": not has_services,
-            "services_configured": config_status,
-            "reason": "No services configured" if not has_services else "Setup complete"
-        }
-    except Exception as e:
-        logger.error(f"Setup status check failed: {e}")
-        return {"requires_setup": True, "reason": f"Error checking setup: {str(e)}"}
-
 @app.get("/")
 async def root():
     return {"message": "MixView API", "version": "1.0.0", "docs": "/docs", "health": "/health"}

@@ -1,4 +1,4 @@
-﻿// Location: mixview/frontend/src/App.jsx
+// Location: mixview/frontend/src/App.jsx
 // Fixed to use import.meta.env instead of process.env for Vite
 
 import React, { useState } from 'react';
@@ -11,56 +11,8 @@ import LoginForm from './components/LoginForm';
 import SearchBar from './components/SearchBar';
 import './App.css';
 
-// Custom hook for first-run detection
-const useFirstRun = () => {
-  const [isFirstRun, setIsFirstRun] = useState(null); // null = loading
-  const API_BASE = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8001';
-  
-  useEffect(() => {
-    const checkFirstRun = async () => {
-      try {
-        // Check both localStorage AND backend setup status
-        const localSetup = localStorage.getItem('mixview_app_initialized');
-        
-        // Also check backend setup status
-        const response = await fetch(`${API_BASE}/setup/status`);
-        let backendSetup = null;
-        
-        if (response.ok) {
-          backendSetup = await response.json();
-        } else {
-          console.warn('Could not reach backend setup status endpoint');
-        }
-        
-        const needsSetup = !localSetup || backendSetup?.requires_setup === true;
-        
-        if (needsSetup) {
-          setIsFirstRun(true);
-          localStorage.setItem('mixview_app_initialized', 'started'); // Mark as started
-        } else {
-          setIsFirstRun(false);
-        }
-      } catch (error) {
-        console.error('First run detection failed:', error);
-        // If we can't reach the backend, check localStorage only
-        const localSetup = localStorage.getItem('mixview_app_initialized');
-        setIsFirstRun(!localSetup);
-      }
-    };
-    
-    checkFirstRun();
-  }, [API_BASE]);
-  
-  const completeSetup = () => {
-    localStorage.setItem('mixview_app_initialized', 'true');
-    setIsFirstRun(false);
-  };
-  
-  return { isFirstRun, completeSetup };
-};
-
 function App() {
-  // Use first-run detection`n  const { isFirstRun, completeSetup } = useFirstRun();`n`n  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(null);
   const [token, setToken] = useState(localStorage.getItem('token'));
   const [nodes, setNodes] = useState({ artists: [], albums: [], tracks: [] });
   const [selectedNode, setSelectedNode] = useState(null);
@@ -204,37 +156,14 @@ function App() {
         handleLogout();
       });
     }
-  }, [token, user, API_BASE]);  // Show loading while checking first run status
-  if (isFirstRun === null) {
-    return (
-      <div className="App">
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-          <div className="loading">
-            <h3>Initializing MixView...</h3>
-            <p>Checking setup status...</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Show setup wizard if first run (and no user logged in yet)
-  if (isFirstRun && !user) {
-    return (
-      <div className="App">
-        <SetupWizard onComplete={completeSetup} />
-      </div>
-    );
-  }
-
-
+  }, [token, user, API_BASE]);
 
   return (
     <div className="App">
       {error && (
         <div className="error-banner">
           {error}
-          <button onClick={() => setError(null)}>Ã—</button>
+          <button onClick={() => setError(null)}>×</button>
         </div>
       )}
       

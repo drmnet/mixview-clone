@@ -1,5 +1,5 @@
-﻿# Location: mixview/docker-compose.yml
-# Description: Fixed Docker Compose configuration with proper networking and health checks
+# Location: mixview/docker-compose.yml
+# Description: Fixed Docker Compose configuration with proper networking
 
 version: "3.9"
 
@@ -11,23 +11,15 @@ services:
     container_name: mixview_backend
     env_file: .env
     ports:
-      - "8001:8000"  # Host:Container - Frontend will connect to localhost:8001
+      - "8001:8001"  # Fixed: Map port 8001 to 8001
     volumes:
       - ./backend:/app
     depends_on:
-      db:
-        condition: service_healthy
+      - db
     networks:
       - mixview-network
     environment:
       - DATABASE_URL=postgresql://mixview:mixviewpass@db:5432/mixview
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 60s
-    restart: unless-stopped
 
   frontend:
     build:
@@ -45,15 +37,7 @@ services:
     networks:
       - mixview-network
     depends_on:
-      backend:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
-    restart: unless-stopped
+      - backend
 
   db:
     image: postgres:16-alpine
@@ -68,13 +52,6 @@ services:
       - pgdata:/var/lib/postgresql/data
     networks:
       - mixview-network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U mixview -d mixview"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
-    restart: unless-stopped
 
 volumes:
   pgdata:
