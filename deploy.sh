@@ -229,6 +229,12 @@ $COMPOSE_CMD down --volumes 2>/dev/null || true
 echo "✅ Existing containers stopped."
 echo ""
 
+# Add a 5-second delay to prevent a race condition
+echo "Waiting 5 seconds for ports to be fully released..."
+sleep 5
+echo "✅ Ports should now be available."
+echo ""
+
 # Step 6: Clean up old images (optional but recommended)
 # Removing old images frees up disk space and prevents potential conflicts.
 read -p "Remove old Docker images to ensure a clean build? (y/N): " -n 1 -r clean_images
