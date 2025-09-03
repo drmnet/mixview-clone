@@ -468,7 +468,7 @@ if ! $COMPOSE_CMD ps backend | grep -qE "(Up|running)"; then
 fi
 
 # Check frontend container status  
-if ! $COMPOSE_CMD ps frontend | grep -q "Up"; then
+if ! $COMPOSE_CMD ps frontend | grep -qE "(Up|running)"; then
     echo "❌ ERROR: Frontend container failed to start or crashed immediately."
     echo ""
     echo "Frontend container status:"
