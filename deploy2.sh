@@ -442,16 +442,6 @@ print(f'ERROR: {e}')
 import traceback
 traceback.print_exc()
 sys.exit(1)
-"; then
-echo "❌ ERROR: Database initialization failed."
-echo "Check the backend container's logs for more details with: $COMPOSE_CMD logs backend"
-echo ""
-echo "Common database initialization issues:"
-echo "  - Import errors in Python modules"
-echo "  - Database connection refused"
-echo "  - Missing environment variables"
-echo "  - SQLAlchemy model definition errors"
-exit 1
 fi
 echo "✅ Database schema initialized."
 echo ""
