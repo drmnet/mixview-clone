@@ -447,7 +447,7 @@ echo "Checking for immediate container startup failures..."
 sleep 10  # Give containers time to fail if they're going to fail
 
 # Check backend container status
-if ! $COMPOSE_CMD ps backend | grep -q "Up"; then
+if ! $COMPOSE_CMD ps backend | grep -qE "(Up|running)"; then
     echo "❌ ERROR: Backend container failed to start or crashed immediately."
     echo ""
     echo "Backend container status:"

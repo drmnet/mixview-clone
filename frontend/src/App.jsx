@@ -60,7 +60,11 @@ const useFirstRun = () => {
 };
 
 function App() {
-  // Use first-run detection`n  const { isFirstRun, completeSetup } = useFirstRun();`n`n  const [user, setUser] = useState(null);
+  // Use first-run detection
+  const { isFirstRun, completeSetup } = useFirstRun();
+
+  // FIXED: Define all state variables before using them in useEffect
+  const [user, setUser] = useState(null);
   const [token, setToken] = useState(localStorage.getItem('token'));
   const [nodes, setNodes] = useState({ artists: [], albums: [], tracks: [] });
   const [selectedNode, setSelectedNode] = useState(null);
@@ -179,8 +183,8 @@ function App() {
     // Optionally trigger a search refresh with new filters
   };
 
-  // Check if user is logged in on component mount
-  React.useEffect(() => {
+  // FIXED: Check if user is logged in on component mount - now user is defined
+  useEffect(() => {
     if (token && !user) {
       // Verify token and get user info
       fetch(`${API_BASE}/auth/me`, {
@@ -204,7 +208,9 @@ function App() {
         handleLogout();
       });
     }
-  }, [token, user, API_BASE]);  // Show loading while checking first run status
+  }, [token, user, API_BASE]); // Now 'user' is properly defined
+
+  // Show loading while checking first run status
   if (isFirstRun === null) {
     return (
       <div className="App">
@@ -227,14 +233,12 @@ function App() {
     );
   }
 
-
-
   return (
     <div className="App">
       {error && (
         <div className="error-banner">
           {error}
-          <button onClick={() => setError(null)}>Ã—</button>
+          <button onClick={() => setError(null)}>×</button>
         </div>
       )}
       
@@ -286,4 +290,3 @@ function App() {
 }
 
 export default App;
-
