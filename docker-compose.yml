@@ -1,5 +1,6 @@
-﻿# Location: mixview/docker-compose.yml
-# Description: Fixed Docker Compose configuration with proper networking and health checks
+﻿# Corrected docker-compose.yml WITHOUT port mappings
+# Port mappings will be handled entirely by docker-compose.override.yml
+# This prevents conflicts and allows the override to work properly
 
 version: "3.9"
 
@@ -10,8 +11,7 @@ services:
       dockerfile: Dockerfile
     container_name: mixview_backend
     env_file: .env
-    ports:
-      - "8001:8001"  # Host:Container - Frontend will connect to localhost:8001
+    # NO ports section - will be defined in override file
     volumes:
       - ./backend:/app
     depends_on:
@@ -22,7 +22,7 @@ services:
     environment:
       - DATABASE_URL=postgresql://mixview:mixviewpass@db:5432/mixview
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]  # Internal port 8000
       interval: 30s
       timeout: 10s
       retries: 5
@@ -34,10 +34,8 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: mixview_frontend
-    ports:
-      - "3001:3001"  # Frontend runs on 3000 inside container, exposed on 3001
+    # NO ports section - will be defined in override file
     environment:
-      # Use the host machine's localhost for browser access
       - VITE_BACKEND_URL=http://backend:8001
     volumes:
       - ./frontend:/app
@@ -48,7 +46,7 @@ services:
       backend:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3001"]
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]  # Internal port 3000
       interval: 30s
       timeout: 10s
       retries: 3
@@ -62,8 +60,7 @@ services:
       POSTGRES_USER: mixview
       POSTGRES_PASSWORD: mixviewpass
       POSTGRES_DB: mixview
-    ports:
-      - "5433:5432"
+    # NO ports section - will be defined in override file
     volumes:
       - pgdata:/var/lib/postgresql/data
     networks:
