@@ -187,13 +187,13 @@ else
         create_env_file
     fi
 
-    # Update ports in existing .env if they're still set to the old values (8000, 3000)
-    if grep -q "BACKEND_URL=http://localhost:8000" .env; then
+    # Update ports in existing .env if they're still set to the old values (8001, 3001)
+    if grep -q "BACKEND_URL=http://localhost:8001" .env; then
         echo "Updating ports in .env file to match the new configuration..."
-        sed -i 's|BACKEND_URL=http://localhost:8000|BACKEND_URL=http://localhost:8001|g' .env
-        sed -i 's|FRONTEND_URL=http://localhost:3000|FRONTEND_URL=http://localhost:3001|g' .env
-        sed -i 's|ALLOWED_ORIGINS=http://localhost:3000|ALLOWED_ORIGINS=http://localhost:3001|g' .env
-        sed -i 's|SPOTIFY_REDIRECT_URI=http://localhost:8000|SPOTIFY_REDIRECT_URI=http://localhost:8001|g' .env
+        sed -i 's|BACKEND_URL=http://localhost:8001|BACKEND_URL=http://localhost:8001|g' .env
+        sed -i 's|FRONTEND_URL=http://localhost:3001|FRONTEND_URL=http://localhost:3001|g' .env
+        sed -i 's|ALLOWED_ORIGINS=http://localhost:3001|ALLOWED_ORIGINS=http://localhost:3001|g' .env
+        sed -i 's|SPOTIFY_REDIRECT_URI=http://localhost:8001|SPOTIFY_REDIRECT_URI=http://localhost:8001|g' .env
         echo "✅ Port configuration updated."
     fi
     echo "✅ .env file is up-to-date."
