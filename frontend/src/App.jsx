@@ -1,7 +1,7 @@
 ﻿// Location: mixview/frontend/src/App.jsx
 // Fixed to use import.meta.env instead of process.env for Vite
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import GraphView from './components/GraphView';
 import FiltersPanel from './components/FiltersPanel';
 import ContextPanel from './components/ContextPanel';
@@ -286,3 +286,4 @@ function App() {
 }
 
 export default App;
+

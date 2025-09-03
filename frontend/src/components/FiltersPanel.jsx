@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 
 function FiltersPanel({ filters = [], onFiltersChange, token }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [newFilter, setNewFilter] = useState({ filter_type: 'exclude_genre', value: '' });
   const [loading, setLoading] = useState(false);
 
-  const API_BASE = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+  const API_BASE = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8001';
 
   const filterTypes = [
     { value: 'exclude_genre', label: 'Exclude Genre' },
@@ -82,7 +82,7 @@ function FiltersPanel({ filters = [], onFiltersChange, token }) {
     <div className="filters-panel">
       <div className="panel-header" onClick={() => setIsExpanded(!isExpanded)}>
         <h3>Filters ({filters.length})</h3>
-        <span className={`expand-arrow ${isExpanded ? 'expanded' : ''}`}>▼</span>
+        <span className={`expand-arrow ${isExpanded ? 'expanded' : ''}`}>â–¼</span>
       </div>
 
       {isExpanded && (
@@ -102,7 +102,7 @@ function FiltersPanel({ filters = [], onFiltersChange, token }) {
                     disabled={loading}
                     title="Remove filter"
                   >
-                    ×
+                    Ã—
                   </button>
                 </div>
               ))

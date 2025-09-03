@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 
 function ServiceManager({ user, token, onClose }) {
   const [services, setServices] = useState([]);
@@ -10,7 +10,7 @@ function ServiceManager({ user, token, onClose }) {
   });
   const [submitting, setSubmitting] = useState({});
 
-  const API_BASE = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+  const API_BASE = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8001';
 
   useEffect(() => {
     loadServiceStatus();
@@ -155,13 +155,13 @@ function ServiceManager({ user, token, onClose }) {
 
   const getServiceIcon = (serviceName) => {
     const icons = {
-      spotify: '🎵',
-      lastfm: '🎧',
-      discogs: '💿',
-      apple_music: '🍎',
-      musicbrainz: '🎼'
+      spotify: 'ðŸŽµ',
+      lastfm: 'ðŸŽ§',
+      discogs: 'ðŸ’¿',
+      apple_music: 'ðŸŽ',
+      musicbrainz: 'ðŸŽ¼'
     };
-    return icons[serviceName] || '🔗';
+    return icons[serviceName] || 'ðŸ”—';
   };
 
   const renderServiceStatus = () => (
@@ -346,7 +346,7 @@ function ServiceManager({ user, token, onClose }) {
       <div className="service-manager-modal">
         <div className="modal-header">
           <h2>Music Service Manager</h2>
-          <button onClick={onClose} className="close-button">×</button>
+          <button onClick={onClose} className="close-button">Ã—</button>
         </div>
 
         <div className="tab-navigation">

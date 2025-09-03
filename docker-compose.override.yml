@@ -1,0 +1,21 @@
+﻿# Network access override for MixView
+version: "3.9"
+
+services:
+  frontend:
+    environment:
+      - VITE_BACKEND_URL=http://192.168.2.103:8001
+    ports:
+      - "0.0.0.0:3001:3000"
+
+  backend:
+    ports:
+      - "0.0.0.0:8001:8000"
+    environment:
+      - BACKEND_URL=http://192.168.2.103:8001
+      - FRONTEND_URL=http://192.168.2.103:3001
+      - ALLOWED_ORIGINS=http://192.168.2.103:3001,http://localhost:3001
+
+  db:
+    ports:
+      - "0.0.0.0:5433:5432"

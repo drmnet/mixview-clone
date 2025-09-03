@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 
 function SetupWizard({ onComplete }) {
   const [serviceStatus, setServiceStatus] = useState({});
   const [loading, setLoading] = useState(true);
   const [currentStep, setCurrentStep] = useState(0);
 
-  const API_BASE = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+  const API_BASE = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8001';
 
   const steps = [
     {
@@ -131,7 +131,7 @@ function SetupWizard({ onComplete }) {
                 {info.setupUrl && (
                   <p>
                     <a href={info.setupUrl} target="_blank" rel="noopener noreferrer">
-                      Get API credentials →
+                      Get API credentials â†’
                     </a>
                   </p>
                 )}
