@@ -1,5 +1,5 @@
 ﻿# Location: mixview/backend/main.py
-# Description: Fixed Main FastAPI application entry point with absolute imports
+# Description: Fixed Main FastAPI application entry point with corrected CORS configuration
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
@@ -27,15 +27,25 @@ logger = logging.getLogger("mixview")
 # App Initialization
 app = FastAPI(title="MixView Backend", version="1.0.0")
 
-# Middleware
-allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:3001,http://localhost:3000,http://192.168.2.103:3001").split(",")
+# FIXED: CORS Middleware Configuration
+# Get allowed origins from environment variable
+allowed_origins_str = os.getenv("ALLOWED_ORIGINS", "http://localhost:3001,http://192.168.2.103:3001")
+allowed_origins = [origin.strip() for origin in allowed_origins_str.split(",")]
+
+# Add wildcard for development if needed
+if os.getenv("DEBUG", "false").lower() == "true":
+    allowed_origins.append("*")
+
+logger.info(f"CORS allowed origins: {allowed_origins}")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Use wildcard for development
+    allow_origins=allowed_origins,  # Specific origins instead of ["*"]
     allow_credentials=True,
-    allow_methods=["*"],  # Allow all methods
-    allow_headers=["*"],  # Allow all headers
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],  # Explicit methods
+    allow_headers=["*"],
+    expose_headers=["*"],  # Important: expose headers for responses
+    max_age=3600,  # Cache preflight for 1 hour
 )
 
 # Exception Handlers
@@ -113,6 +123,11 @@ async def health():
                 "user_service_management": True,
                 "oauth_flows": True,
                 "credential_encryption": True
+            },
+            "cors_origins": allowed_origins,  # Add CORS info to health check
+            "cors_config": {
+                "credentials_enabled": "*" not in allowed_origins,
+                "development_mode": os.getenv("DEBUG", "false").lower() == "true"
             }
         }
     except Exception as e:
@@ -133,8 +148,6 @@ try:
 except Exception as e:
     logger.error(f"Failed to load routers: {e}")
 
-# Root endpoint
-
 # Setup status endpoint for first-run detection
 @app.get("/setup/status")
 async def setup_status():
@@ -152,11 +165,13 @@ async def setup_status():
         logger.error(f"Setup status check failed: {e}")
         return {"requires_setup": True, "reason": f"Error checking setup: {str(e)}"}
 
+# Root endpoint
 @app.get("/")
 async def root():
     return {"message": "MixView API", "version": "1.0.0", "docs": "/docs", "health": "/health"}
 
-# FIX: Add an explicit OPTIONS route for preflight requests
+# FIXED: Explicit OPTIONS route handler for CORS preflight requests
 @app.options("/{path:path}")
 async def options_handler(path: str):
-    return {"message": "OK"}
+    """Handle CORS preflight requests"""
+    return {"message": "CORS preflight successful"}

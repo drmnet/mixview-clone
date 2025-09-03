@@ -98,12 +98,10 @@ create_env_file() {
     SECRET_KEY=$(generate_key)
 
     # Create .env file with CORRECTED SYNTAX
-    cat > .env << EOF
 # =========================================================
-# MixView Configuration
+# MixView Configuration - Flexible Deployment
 # =========================================================
 # Database Configuration
-# The database container will expose port 5433 internally.
 DB_USER=mixview
 DB_PASSWORD=mixviewpass
 DB_HOST=db
@@ -111,49 +109,42 @@ DB_NAME=mixview
 DB_PORT=5433
 
 # Database URL for SQLAlchemy
-DATABASE_URL=postgresql://mixview:mixviewpass@db:5433/mixview
+DATABASE_URL=postgresql://mixview:mixviewpass@db:5432/mixview
 
 # Authentication & Security (Generated)
-# DO NOT SHARE THESE KEYS. They are essential for securing user data.
-# JWT_SECRET_KEY is used to sign JSON Web Tokens for user authentication.
-# CREDENTIAL_ENCRYPTION_KEY is used to encrypt sensitive user credentials (e.g., API keys).
-# SECRET_KEY is a general-purpose secret key for the application.
 JWT_SECRET_KEY=${JWT_SECRET}
 CREDENTIAL_ENCRYPTION_KEY=${ENCRYPTION_KEY}
 SECRET_KEY=${SECRET_KEY}
 ENCRYPTION_SALT=mixview-salt
 
-# Application URLs (UPDATED PORTS)
-# The backend will be accessible on port 8001 and the frontend on 3001.
+# Application URLs (Flexible - auto-detects in development)
 BACKEND_URL=http://localhost:8001
 FRONTEND_URL=http://localhost:3001
 
+# Environment Settings
+ENVIRONMENT=development
+DEBUG=true
+LOG_LEVEL=INFO
+
 # Global Service Configuration (Optional)
-# These are for the application's internal API service. Users can also provide their own keys.
 SPOTIFY_CLIENT_ID=
 SPOTIFY_CLIENT_SECRET=
 SPOTIFY_REDIRECT_URI=http://localhost:8001/oauth/spotify/callback
 
-# Optional service keys (users can add their own via UI)
+# Optional service keys
 LASTFM_API_KEY=
 DISCOGS_TOKEN=
 APPLE_MUSIC_TOKEN=
 
-# Development Settings
-# Set DEBUG to false for production deployments to disable detailed error messages.
-DEBUG=true
-LOG_LEVEL=INFO
+# CORS Settings (Auto-configured in development)
+# Only specify ALLOWED_ORIGINS if you need custom origins beyond defaults
 
-# CORS Settings (UPDATED PORT)
-# Specifies which origins are allowed to make API requests to the backend.
-ALLOWED_ORIGINS=http://localhost:3001
-
-# Optional: Redis Configuration (for future caching/rate limiting)
+# Optional: Redis Configuration
 REDIS_URL=redis://localhost:6379/0
-EOF
 
-    echo "✅ Generated a new .env file with secure, randomly generated keys."
-    echo "    Ensure this file is kept secure and is not committed to version control."
+echo "✅ Generated a new .env file with secure, randomly generated keys."
+    echo "    Environment will auto-configure for local development."
+    echo "    For production deployment, set ENVIRONMENT=production and specify your domains."
     echo ""
 }
 
@@ -468,7 +459,7 @@ if ! $COMPOSE_CMD ps backend | grep -qE "(Up|running)"; then
 fi
 
 # Check frontend container status  
-if ! $COMPOSE_CMD ps frontend | grep -qE "(Up|running)"; then
+if ! $COMPOSE_CMD ps frontend | grep -q "Up"; then
     echo "❌ ERROR: Frontend container failed to start or crashed immediately."
     echo ""
     echo "Frontend container status:"
