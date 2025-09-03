@@ -103,15 +103,15 @@ create_env_file() {
 # MixView Configuration
 # =========================================================
 # Database Configuration
-# The database container will expose port 5432 internally.
+# The database container will expose port 5433 internally.
 DB_USER=mixview
 DB_PASSWORD=mixviewpass
 DB_HOST=db
 DB_NAME=mixview
-DB_PORT=5432
+DB_PORT=5433
 
 # Database URL for SQLAlchemy
-DATABASE_URL=postgresql://mixview:mixviewpass@db:5432/mixview
+DATABASE_URL=postgresql://mixview:mixviewpass@db:5433/mixview
 
 # Authentication & Security (Generated)
 # DO NOT SHARE THESE KEYS. They are essential for securing user data.
