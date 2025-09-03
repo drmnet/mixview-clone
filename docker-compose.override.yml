@@ -1,4 +1,4 @@
-﻿# Network access override for MixView
+﻿# Fixed docker-compose.override.yml - REMOVED duplicate db port binding
 version: "3.9"
 
 services:
@@ -16,6 +16,5 @@ services:
       - FRONTEND_URL=http://192.168.2.103:3001
       - ALLOWED_ORIGINS=http://192.168.2.103:3001,http://localhost:3001
 
-  db:
-    ports:
-      - "0.0.0.0:5433:5432"
+  # REMOVED the db section entirely since it was duplicating the port binding
+  # The main docker-compose.yml already handles the database port correctly
