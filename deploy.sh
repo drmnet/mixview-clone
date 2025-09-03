@@ -260,7 +260,7 @@ echo "✅ Ports should now be available."
 echo ""
 
 echo "Verifying port 5433 is free..."
-sudo lsof -i :5433
+netstat -ltn | grep :5433
 echo "Press any key to continue..."
 read -n 1
 
