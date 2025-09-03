@@ -253,17 +253,6 @@ else
 fi
 echo ""
 
-# Add a 5-second delay to prevent a race condition
-echo "Waiting 5 seconds for ports to be fully released..."
-sleep 5
-echo "✅ Ports should now be available."
-echo ""
-
-echo "Verifying port 5433 is free..."
-netstat -ltn | grep :5433
-echo "Press any key to continue..."
-read -n 1
-
 # Step 7: Build Docker images with dependency validation
 echo "Building Docker images for backend and frontend..."
 
