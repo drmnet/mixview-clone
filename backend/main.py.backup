@@ -10,6 +10,7 @@ import time
 import sys
 
 # Add the current directory to Python path for absolute imports
+))
 
 # Fixed imports - use absolute imports instead of relative
 from routes import auth, aggregator, search, oauth
@@ -20,7 +21,7 @@ from config import Config
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-
+)
 logger = logging.getLogger("mixview")
 
 # App Initialization
@@ -45,6 +46,7 @@ app.add_middleware(
     allow_headers=["*"],
     expose_headers=["*"],  # Important: expose headers for responses
     max_age=3600,  # Cache preflight for 1 hour
+)
 
 # Exception Handlers
 @app.exception_handler(Exception)
@@ -53,6 +55,7 @@ async def global_exception_handler(request: Request, exc: Exception):
     return JSONResponse(
         status_code=500,
         content={"error": "Internal server error", "detail": str(exc)},
+    )
 
 # Events
 @app.on_event("startup")
@@ -69,7 +72,7 @@ async def on_startup():
                 break
         except Exception as e:
             logger.error(f"Database init attempt {i+1} failed: {e}")
-
+        
         if i < max_retries - 1:
             logger.warning(f"Database initialization failed. Retrying in {retry_delay}s... (Attempt {i+1}/{max_retries})")
             time.sleep(retry_delay)
@@ -82,14 +85,14 @@ async def on_startup():
         logger.info("Database connection test passed.")
     else:
         logger.warning("Database connection test failed, but continuing...")
-
+        
     # Validate configuration
     try:
         config_status = Config.validate_config()
         logger.info(f"Service configuration status: {config_status}")
     except Exception as e:
         logger.error(f"Config validation failed: {e}")
-
+    
     logger.info("Application startup complete.")
 
 @app.on_event("shutdown")
@@ -106,7 +109,7 @@ async def health():
     try:
         config_status = Config.validate_config()
         db_status = test_connection()
-
+        
         return {
             "status": "ok" if db_status else "degraded",
             "database": db_status,
@@ -152,7 +155,7 @@ async def setup_status():
     try:
         config_status = Config.validate_config()
         has_services = any(config_status.values())
-
+        
         return {
             "requires_setup": not has_services,
             "services_configured": config_status,

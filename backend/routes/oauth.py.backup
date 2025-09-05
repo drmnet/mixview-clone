@@ -11,9 +11,9 @@ import logging
 import requests
 
 # Fixed imports using relative imports
-from db_package.database import get_db
-from routes.auth import get_current_user
-from db_package.models import User
+from ..db_package.database import get_db
+from .auth import get_current_user
+from ..db_package.models import User
 from user_services import (
     UserServiceManager, SpotifyOAuthManager, 
     UserSpotifyService, UserLastFMService, UserDiscogsService
@@ -728,7 +728,7 @@ async def oauth_health_check():
     
     # Test encryption system
     try:
-        from encryption import credential_encryption
+        from ..encryption import credential_encryption
         test_data = {'test': 'value'}
         encrypted = credential_encryption.encrypt_credentials(test_data)
         decrypted = credential_encryption.decrypt_credentials(encrypted)
