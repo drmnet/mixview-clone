@@ -88,17 +88,6 @@ generate_jwt_secret() {
 }
 
 # Step 1: Create or update .env file
-# This file stores crucial environment variables for the application.
-create_env_file() {
-    echo "Setting up application environment configuration..."
-
-    # Generate secure cryptographic keys
-    JWT_SECRET=$(generate_jwt_secret)
-    ENCRYPTION_KEY=$(generate_key)
-    SECRET_KEY=$(generate_key)
-
-    # Create .env file with CORRECTED SYNTAX
-# Create .env file function
 create_env_file() {
     echo "Setting up application environment configuration..."
 
