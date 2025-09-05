@@ -10,7 +10,7 @@ import time
 import sys
 
 # Add the current directory to Python path for absolute imports
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+))
 
 # Fixed imports - use absolute imports instead of relative
 from routes import auth, aggregator, search, oauth

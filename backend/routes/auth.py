@@ -13,8 +13,8 @@ import logging
 import os
 
 # Fixed imports using absolute imports
-from db_package import get_db
-from models import User, Filter
+from db_package.database import get_db
+from db_package.models import User, Filter
 
 logger = logging.getLogger(__name__)
 router = APIRouter()

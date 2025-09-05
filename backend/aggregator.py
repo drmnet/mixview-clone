@@ -10,7 +10,7 @@ import logging
 import os
 
 # Fixed imports using relative imports
-from models import Artist, Album, Track, User, Filter
+from db_package.models import Artist, Album, Track, User, Filter
 from user_services import UserSpotifyService, UserLastFMService, UserDiscogsService
 
 logger = logging.getLogger(__name__)

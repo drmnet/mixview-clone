@@ -98,54 +98,57 @@ create_env_file() {
     SECRET_KEY=$(generate_key)
 
     # Create .env file with CORRECTED SYNTAX
-# =========================================================
-# MixView Configuration - Flexible Deployment
-# =========================================================
-# Database Configuration
+# Create .env file function
+create_env_file() {
+    echo "Setting up application environment configuration..."
+
+    JWT_SECRET=$(openssl rand -hex 32)
+    ENCRYPTION_KEY=$(python3 -c "import base64,os; print(base64.urlsafe_b64encode(os.urandom(32)).decode())")
+    SECRET_KEY=$(python3 -c "import base64,os; print(base64.urlsafe_b64encode(os.urandom(32)).decode())")
+
+    cat > .env << 'ENVEOF'
+# MixView Configuration
 DB_USER=mixview
 DB_PASSWORD=mixviewpass
 DB_HOST=db
 DB_NAME=mixview
 DB_PORT=5433
 
-# Database URL for SQLAlchemy
 DATABASE_URL=postgresql://mixview:mixviewpass@db:5432/mixview
 
-# Authentication & Security (Generated)
-JWT_SECRET_KEY=${JWT_SECRET}
-CREDENTIAL_ENCRYPTION_KEY=${ENCRYPTION_KEY}
-SECRET_KEY=${SECRET_KEY}
+JWT_SECRET_KEY=PLACEHOLDER_JWT
+CREDENTIAL_ENCRYPTION_KEY=PLACEHOLDER_ENC
+SECRET_KEY=PLACEHOLDER_SEC
 ENCRYPTION_SALT=mixview-salt
 
-# Application URLs (Flexible - auto-detects in development)
 BACKEND_URL=http://localhost:8001
 FRONTEND_URL=http://localhost:3001
 
-# Environment Settings
 ENVIRONMENT=development
 DEBUG=true
 LOG_LEVEL=INFO
 
-# Global Service Configuration (Optional)
 SPOTIFY_CLIENT_ID=
 SPOTIFY_CLIENT_SECRET=
 SPOTIFY_REDIRECT_URI=http://localhost:8001/oauth/spotify/callback
 
-# Optional service keys
 LASTFM_API_KEY=
 DISCOGS_TOKEN=
 APPLE_MUSIC_TOKEN=
 
-# CORS Settings (Auto-configured in development)
-# Only specify ALLOWED_ORIGINS if you need custom origins beyond defaults
+ALLOWED_ORIGINS=http://localhost:3001
 
-# Optional: Redis Configuration
 REDIS_URL=redis://localhost:6379/0
+ENVEOF
 
-echo "✅ Generated a new .env file with secure, randomly generated keys."
-    echo "    Environment will auto-configure for local development."
-    echo "    For production deployment, set ENVIRONMENT=production and specify your domains."
-    echo ""
+    sed -i "s/PLACEHOLDER_JWT/$JWT_SECRET/g" .env
+    sed -i "s/PLACEHOLDER_ENC/$ENCRYPTION_KEY/g" .env
+    sed -i "s/PLACEHOLDER_SEC/$SECRET_KEY/g" .env
+
+    echo "✅ Generated .env file with secure keys."
+}
+
+echo ""
 }
 
 # Step 2: Check for existing .env file and validate required keys

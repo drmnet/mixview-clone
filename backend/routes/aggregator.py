@@ -9,12 +9,12 @@ import sys
 import os
 
 # Add parent directory to path for imports
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+)))
 
 # Now import from parent directory
-from db_package import get_db
-from routes.auth import get_current_user
-from models import User, Artist, Album, Track
+from db_package.database import get_db
+from auth import get_current_user
+from db_package.models import User, Artist, Album, Track
 from aggregator import AggregationService
 
 logger = logging.getLogger(__name__)
