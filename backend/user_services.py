@@ -11,7 +11,7 @@ import os
 
 # Fixed imports using relative imports
 from db_package.models import User, UserServiceCredential, OAuthState
-from routes.encryption import credential_encryption
+from encryption import credential_encryption
 from spotipy.oauth2 import SpotifyOAuth
 import spotipy
 
