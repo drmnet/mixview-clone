@@ -137,9 +137,6 @@ ENVEOF
     echo "✅ Generated .env file with secure keys."
 }
 
-echo ""
-}
-
 # Step 2: Check for existing .env file and validate required keys
 # This step ensures the application's configuration is secure and up-to-date.
 if [ ! -f .env ]; then
