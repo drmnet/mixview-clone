@@ -324,7 +324,7 @@ try:
     from routes import auth, aggregator, search, oauth
     print('✅ Routes imports successful')
     
-    from models import User, Artist, Album, Track
+    from db_package.models import User, Artist, Album, Track
     print('✅ Models imports successful')
     
     from config import Config
