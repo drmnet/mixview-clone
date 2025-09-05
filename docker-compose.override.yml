@@ -15,6 +15,7 @@ services:
       - BACKEND_URL=http://192.168.2.103:8001
       - FRONTEND_URL=http://192.168.2.103:3001
       - ALLOWED_ORIGINS=http://192.168.2.103:3001,http://localhost:3001
+      - DEBUG=true
 
   # REMOVED the db section entirely since it was duplicating the port binding
   # The main docker-compose.yml already handles the database port correctly

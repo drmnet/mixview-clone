@@ -32,20 +32,20 @@ app = FastAPI(title="MixView Backend", version="1.0.0")
 allowed_origins_str = os.getenv("ALLOWED_ORIGINS", "http://localhost:3001,http://192.168.2.103:3001")
 allowed_origins = [origin.strip() for origin in allowed_origins_str.split(",")]
 
-# Add wildcard for development if needed
-if os.getenv("DEBUG", "false").lower() == "true":
-    allowed_origins.append("*")
+# REMOVED: Don't add wildcard when credentials are enabled - this breaks CORS
+# if os.getenv("DEBUG", "false").lower() == "true":
+#     allowed_origins.append("*")
 
 logger.info(f"CORS allowed origins: {allowed_origins}")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allowed_origins,  # Specific origins instead of ["*"]
+    allow_origins=allowed_origins,
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],  # Explicit methods
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
-    expose_headers=["*"],  # Important: expose headers for responses
-    max_age=3600,  # Cache preflight for 1 hour
+    expose_headers=["*"],
+    max_age=3600,
 )
 
 # Exception Handlers
@@ -171,7 +171,7 @@ async def root():
     return {"message": "MixView API", "version": "1.0.0", "docs": "/docs", "health": "/health"}
 
 # FIXED: Explicit OPTIONS route handler for CORS preflight requests
-@app.options("/{path:path}")
-async def options_handler(path: str):
-    """Handle CORS preflight requests"""
+@app.options("/{full_path:path}")
+async def options_handler(full_path: str):
+    """Handle CORS preflight requests for all paths"""
     return {"message": "CORS preflight successful"}
