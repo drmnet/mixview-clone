@@ -12,10 +12,10 @@ import os
 # (If you need to add the parent directory, use sys.path.append or similar here)
 
 # Now import from parent directory
-from db_package.database import get_db
-from auth import get_current_user
-from db_package.models import User, Artist, Album, Track
-from aggregator import AggregationService
+from ..db_package.database import get_db
+from .auth import get_current_user
+from ..db_package.models import User, Artist, Album, Track
+from ..aggregator import AggregationService
 
 logger = logging.getLogger(__name__)
 router = APIRouter()

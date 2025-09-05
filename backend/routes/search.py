@@ -7,10 +7,10 @@ from typing import Optional, List, Dict, Any
 import logging
 
 # Fixed imports using relative imports
-from db_package.database import get_db
-from auth import get_current_user
-from db_package.models import User, Artist, Album, Track
-from user_services import UserSpotifyService, UserLastFMService, UserDiscogsService
+from ..db_package.database import get_db
+from .auth import get_current_user
+from ..db_package.models import User, Artist, Album, Track
+from ..user_services import UserSpotifyService, UserLastFMService, UserDiscogsService
 
 logger = logging.getLogger(__name__)
 router = APIRouter()

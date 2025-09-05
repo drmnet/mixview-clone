@@ -11,9 +11,9 @@ import logging
 import requests
 
 # Fixed imports using relative imports
-from db_package.database import get_db
-from auth import get_current_user
-from db_package.models import User
+from ..db_package.database import get_db
+from .auth import get_current_user
+from ..db_package.models import User
 from user_services import (
     UserServiceManager, SpotifyOAuthManager, 
     UserSpotifyService, UserLastFMService, UserDiscogsService
