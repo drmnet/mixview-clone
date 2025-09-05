@@ -131,7 +131,7 @@ class Album(Base):
     created_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     
     artist = relationship("Artist", back_populates="albums")
-    tracks = relationship("Track", back_populates="albums")
+    tracks = relationship("Track", back_populates="album")  # Fixed: albums -> album
     related_albums = relationship(
         "Album",
         secondary=album_similarity,
