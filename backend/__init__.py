@@ -4,7 +4,7 @@
 __version__ = "1.0.0"
 
 # Import all models for easy access
-from .models import (
+from .db_package.models import (
     User, Artist, Album, Track, Filter, 
     UserServiceCredential, OAuthState
 )
