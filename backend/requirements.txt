@@ -1,3 +1,6 @@
+# Location: mixview/backend/requirements.txt
+# Description: Updated Python dependencies including Alembic for migrations
+
 fastapi==0.104.1
 uvicorn[standard]==0.24.0
 sqlalchemy==2.0.23
@@ -12,3 +15,8 @@ python-dotenv==1.0.0
 alembic==1.13.0
 cryptography==41.0.7
 pyjwt==2.8.0
+
+# Additional dependencies for enhanced functionality
+python-dateutil==2.8.2  # For Alembic timezone support
+redis==5.0.1  # For caching (optional)
+celery==5.3.4  # For background tasks (optional)

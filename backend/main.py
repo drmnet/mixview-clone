@@ -1,5 +1,5 @@
 ﻿# Location: mixview/backend/main.py
-# Description: Fixed Main FastAPI application entry point with corrected CORS configuration
+# Description: Updated Main FastAPI application with setup wizard integration
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
@@ -13,7 +13,7 @@ import sys
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 # Fixed imports - use absolute imports instead of relative
-from routes import auth, aggregator, search, oauth
+from routes import auth, aggregator, search, oauth, setup
 from db_package import init_database, test_connection, close_database
 from config import Config
 
@@ -27,14 +27,9 @@ logger = logging.getLogger("mixview")
 # App Initialization
 app = FastAPI(title="MixView Backend", version="1.0.0")
 
-# FIXED: CORS Middleware Configuration
-# Get allowed origins from environment variable
+# CORS Middleware Configuration
 allowed_origins_str = os.getenv("ALLOWED_ORIGINS", "http://localhost:3001,http://192.168.2.103:3001")
 allowed_origins = [origin.strip() for origin in allowed_origins_str.split(",")]
-
-# REMOVED: Don't add wildcard when credentials are enabled - this breaks CORS
-# if os.getenv("DEBUG", "false").lower() == "true":
-#     allowed_origins.append("*")
 
 logger.info(f"CORS allowed origins: {allowed_origins}")
 
@@ -62,9 +57,9 @@ async def global_exception_handler(request: Request, exc: Exception):
 async def on_startup():
     logger.info("MixView backend starting up...")
 
-    # Fix: Retry logic for database connection to handle startup race conditions
+    # Database initialization with retry logic
     max_retries = 10
-    retry_delay = 5  # seconds
+    retry_delay = 5
     for i in range(max_retries):
         try:
             if init_database():
@@ -78,9 +73,8 @@ async def on_startup():
             time.sleep(retry_delay)
     else:
         logger.error("Failed to initialize database after multiple retries. Continuing anyway...")
-        # Don't exit - let the app start even if DB init fails
 
-    # Now that the DB is initialized, test the connection
+    # Test database connection
     if test_connection():
         logger.info("Database connection test passed.")
     else:
@@ -122,9 +116,10 @@ async def health():
                 "multi_user": True,
                 "user_service_management": True,
                 "oauth_flows": True,
-                "credential_encryption": True
+                "credential_encryption": True,
+                "setup_wizard": True
             },
-            "cors_origins": allowed_origins,  # Add CORS info to health check
+            "cors_origins": allowed_origins,
             "cors_config": {
                 "credentials_enabled": "*" not in allowed_origins,
                 "development_mode": os.getenv("DEBUG", "false").lower() == "true"
@@ -144,10 +139,12 @@ try:
     app.include_router(aggregator.router, prefix="/aggregator", tags=["aggregator"])
     app.include_router(search.router, prefix="/search", tags=["search"])
     app.include_router(oauth.router, prefix="/oauth", tags=["oauth"])
+    app.include_router(setup.router, prefix="/setup", tags=["setup"])
     logger.info("All routers loaded successfully")
 except Exception as e:
     logger.error(f"Failed to load routers: {e}")
 
+# Enhanced setup status endpoint
 @app.get("/setup/status")
 async def setup_status():
     """Check if the application requires initial setup"""
@@ -155,23 +152,41 @@ async def setup_status():
         config_status = Config.validate_config()
         
         # Only count services that actually need configuration
-        configurable_services = ['spotify', 'lastfm', 'discogs']
+        configurable_services = ['spotify', 'lastfm', 'discogs', 'youtube']
         has_configured_services = any(config_status.get(service, False) for service in configurable_services)
         
+        # Check if Spotify OAuth is properly configured on the server
+        spotify_server_configured = bool(
+            os.getenv("SPOTIFY_CLIENT_ID") and 
+            os.getenv("SPOTIFY_CLIENT_SECRET")
+        )
+        
         return {
-            "requires_setup": not has_configured_services,
+            "requires_setup": not has_configured_services and not spotify_server_configured,
             "services_configured": config_status,
+            "server_config": {
+                "spotify_oauth": spotify_server_configured,
+                "database": bool(os.getenv("DATABASE_URL")),
+                "encryption": bool(os.getenv("CREDENTIAL_ENCRYPTION_KEY"))
+            },
             "reason": "No configurable services set up" if not has_configured_services else "Setup complete"
         }
     except Exception as e:
         logger.error(f"Setup status check failed: {e}")
         return {"requires_setup": True, "reason": f"Error checking setup: {str(e)}"}
+
 # Root endpoint
 @app.get("/")
 async def root():
-    return {"message": "MixView API", "version": "1.0.0", "docs": "/docs", "health": "/health"}
+    return {
+        "message": "MixView API", 
+        "version": "1.0.0", 
+        "docs": "/docs", 
+        "health": "/health",
+        "setup": "/setup/status"
+    }
 
-# FIXED: Explicit OPTIONS route handler for CORS preflight requests
+# Explicit OPTIONS route handler for CORS preflight requests
 @app.options("/{full_path:path}")
 async def options_handler(full_path: str):
     """Handle CORS preflight requests for all paths"""

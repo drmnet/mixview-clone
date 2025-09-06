@@ -1,9 +1,9 @@
 # Location: mixview/backend/db_package/models.py
-# Description: Consolidated database models for MixView backend
+# Description: Enhanced database models with setup completion tracking
 
 import sqlalchemy
 from sqlalchemy import (
-    Column, Integer, String, Float, ForeignKey, Table, Boolean, DateTime, Text
+    Column, Integer, String, Float, ForeignKey, Table, Boolean, DateTime, Text, JSON
 )
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -44,6 +44,8 @@ class User(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     last_login = Column(DateTime(timezone=True), nullable=True)
     is_active = Column(Boolean, default=True)
+    setup_completed = Column(Boolean, default=False)
+    setup_completed_at = Column(DateTime(timezone=True), nullable=True)
     
     # Relationships
     filters = relationship("Filter", back_populates="user", cascade="all, delete-orphan")
@@ -93,6 +95,18 @@ class OAuthState(Base):
     
     user = relationship("User", back_populates="oauth_states")
 
+# Setup completion tracking
+class SetupProgress(Base):
+    __tablename__ = "setup_progress"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, unique=True)
+    is_completed = Column(Boolean, default=False)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+    steps_completed = Column(JSON, default=list)  # Track which steps were completed
+    services_configured = Column(JSON, default=dict)  # Track which services were set up
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
 # Artist table
 class Artist(Base):
     __tablename__ = "artists"
@@ -131,7 +145,7 @@ class Album(Base):
     created_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     
     artist = relationship("Artist", back_populates="albums")
-    tracks = relationship("Track", back_populates="album")  # Fixed: albums -> album
+    tracks = relationship("Track", back_populates="album")
     related_albums = relationship(
         "Album",
         secondary=album_similarity,
@@ -156,7 +170,7 @@ class Track(Base):
     created_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     
     artist = relationship("Artist", back_populates="tracks")
-    album = relationship("Album", back_populates="tracks")  # Fixed this line
+    album = relationship("Album", back_populates="tracks")
     related_tracks = relationship(
         "Track",
         secondary=track_similarity,

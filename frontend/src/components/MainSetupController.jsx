@@ -1,0 +1,1140 @@
+/**
+ * MainSetupController.jsx
+ * 
+ * PURPOSE: Main orchestrator for the MixView app setup wizard. Manages the overall
+ * setup flow, coordinates between different service setup components, handles
+ * navigation, and maintains global setup state.
+ * 
+ * DIRECTORY LOCATION: /src/components/setup/MainSetupController.jsx
+ * 
+ * DEPENDENCIES:
+ * - /src/components/shared/SetupUIComponents.jsx
+ * - /src/components/setup/services/SpotifySetupEnhanced.jsx
+ * - /src/components/setup/services/LastFmSetupEnhanced.jsx (to be created)
+ * - /src/components/setup/services/DiscogsSetupEnhanced.jsx (to be created)
+ * - /src/components/setup/services/YoutubeSetupEnhanced.jsx (to be created)
+ * 
+ * BACKEND ENDPOINTS USED:
+ * - GET /oauth/services/status - Check all service connection statuses
+ * - POST /setup/complete - Mark initial setup as complete
+ * - GET /setup/status - Get overall setup completion status
+ */
+
+import React, { useState, useEffect, useCallback } from 'react';
+import { SetupUIComponents } from '../shared/SetupUIComponents';
+import SpotifySetupEnhanced from './services/SpotifySetupEnhanced';
+// Import other service components as they're created
+// import LastFmSetupEnhanced from './services/LastFmSetupEnhanced';
+// import DiscogsSetupEnhanced from './services/DiscogsSetupEnhanced';
+// import YoutubeSetupEnhanced from './services/YoutubeSetupEnhanced';
+
+const {
+  LoadingSpinner,
+  ErrorMessage,
+  InstructionPanel,
+  ProgressIndicator,
+  ServiceCard,
+  Modal
+} = SetupUIComponents;
+
+// Setup wizard configuration
+const SETUP_STEPS = [
+  'Welcome',
+  'Required Services', 
+  'Optional Services',
+  'Configuration',
+  'Complete'
+];
+
+const SERVICES_CONFIG = {
+  // Required services (user must connect at least one)
+  required: [
+    {
+      id: 'spotify',
+      name: 'Spotify',
+      icon: '🎵',
+      description: 'Connect your Spotify account to access your music library, playlists, and listening history.',
+      component: 'SpotifySetupEnhanced',
+      features: ['Music Library', 'Playlists', 'Top Artists/Tracks', 'Recommendations']
+    }
+  ],
+  // Optional services (enhance the experience)
+  optional: [
+    {
+      id: 'lastfm',
+      name: 'Last.fm',
+      icon: '🎧',
+      description: 'Connect Last.fm for extended listening history and scrobbling data.',
+      component: 'LastFmSetupEnhanced',
+      features: ['Extended History', 'Scrobble Data', 'Artist Info', 'Similar Artists']
+    },
+    {
+      id: 'discogs',
+      name: 'Discogs',
+      icon: '💿',
+      description: 'Access the comprehensive Discogs database for detailed release information.',
+      component: 'DiscogsSetupEnhanced',
+      features: ['Release Database', 'Collection Tracking', 'Marketplace Data', 'Artist Discographies']
+    },
+    {
+      id: 'youtube',
+      name: 'YouTube',
+      icon: '📺',
+      description: 'Connect YouTube for music videos and additional content discovery.',
+      component: 'YoutubeSetupEnhanced',
+      features: ['Music Videos', 'Artist Channels', 'Content Discovery', 'Playlists']
+    }
+  ]
+};
+
+function MainSetupController({ onSetupComplete, initialStep = 0 }) {
+  // Core setup state
+  const [currentStep, setCurrentStep] = useState(initialStep);
+  const [completedSteps, setCompletedSteps] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+  
+  // Service connection states
+  const [serviceStates, setServiceStates] = useState({});
+  const [activeServiceSetup, setActiveServiceSetup] = useState(null);
+  const [setupProgress, setSetupProgress] = useState({
+    requiredServicesConnected: 0,
+    optionalServicesConnected: 0,
+    totalServicesConfigured: 0
+  });
+
+  // Configuration state
+  const [setupConfig, setSetupConfig] = useState({
+    skipOptionalServices: false,
+    enabledFeatures: [],
+    userPreferences: {}
+  });
+
+  const API_BASE = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8001';
+  const token = localStorage.getItem('token');
+
+  // Initialize setup controller
+  useEffect(() => {
+    initializeSetup();
+  }, []);
+
+  // Check service statuses
+  const initializeSetup = async () => {
+    setIsLoading(true);
+    try {
+      await checkAllServiceStatuses();
+      await checkSetupStatus();
+    } catch (error) {
+      console.error('Setup initialization error:', error);
+      setError('Failed to initialize setup wizard. Please refresh and try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Check the status of all configured services
+  const checkAllServiceStatuses = async () => {
+    try {
+      const response = await fetch(`${API_BASE}/oauth/services/status`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const statuses = await response.json();
+        const newServiceStates = {};
+        
+        // Initialize service states
+        [...SERVICES_CONFIG.required, ...SERVICES_CONFIG.optional].forEach(service => {
+          newServiceStates[service.id] = {
+            connected: statuses[service.id]?.connected || false,
+            lastTested: statuses[service.id]?.last_tested || null,
+            error: statuses[service.id]?.error || null,
+            loading: false
+          };
+        });
+
+        setServiceStates(newServiceStates);
+        updateSetupProgress(newServiceStates);
+      }
+    } catch (error) {
+      console.error('Error checking service statuses:', error);
+    }
+  };
+
+  // Check overall setup completion status
+  const checkSetupStatus = async () => {
+    try {
+      const response = await fetch(`${API_BASE}/setup/status`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const status = await response.json();
+        if (status.setup_complete) {
+          setCompletedSteps([0, 1, 2, 3, 4]);
+          if (currentStep < 4) {
+            setCurrentStep(4);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error checking setup status:', error);
+    }
+  };
+
+  // Update setup progress based on service connections
+  const updateSetupProgress = useCallback((states) => {
+    const requiredConnected = SERVICES_CONFIG.required.filter(
+      service => states[service.id]?.connected
+    ).length;
+    
+    const optionalConnected = SERVICES_CONFIG.optional.filter(
+      service => states[service.id]?.connected
+    ).length;
+
+    const totalConfigured = requiredConnected + optionalConnected;
+
+    setSetupProgress({
+      requiredServicesConnected: requiredConnected,
+      optionalServicesConnected: optionalConnected,
+      totalServicesConfigured: totalConfigured
+    });
+
+    // Auto-advance steps based on progress
+    if (requiredConnected > 0 && !completedSteps.includes(1)) {
+      setCompletedSteps(prev => [...prev, 1]);
+    }
+  }, [completedSteps]);
+
+  // Handle service connection updates
+  const handleServiceConnected = (serviceId) => {
+    setServiceStates(prev => {
+      const updated = {
+        ...prev,
+        [serviceId]: {
+          ...prev[serviceId],
+          connected: true,
+          error: null,
+          loading: false
+        }
+      };
+      updateSetupProgress(updated);
+      return updated;
+    });
+    
+    setActiveServiceSetup(null);
+    setError(null);
+  };
+
+  // Handle service connection errors
+  const handleServiceError = (serviceId, errorMessage) => {
+    setServiceStates(prev => ({
+      ...prev,
+      [serviceId]: {
+        ...prev[serviceId],
+        error: errorMessage,
+        loading: false
+      }
+    }));
+    setError(errorMessage);
+  };
+
+  // Handle service loading state changes
+  const handleServiceLoadingChange = (serviceId, loading) => {
+    setServiceStates(prev => ({
+      ...prev,
+      [serviceId]: {
+        ...prev[serviceId],
+        loading: loading
+      }
+    }));
+  };
+
+  // Navigation functions
+  const goToStep = (stepIndex) => {
+    if (stepIndex >= 0 && stepIndex < SETUP_STEPS.length) {
+      setCurrentStep(stepIndex);
+      setError(null);
+    }
+  };
+
+  const nextStep = () => {
+    if (currentStep < SETUP_STEPS.length - 1) {
+      // Add current step to completed if not already there
+      if (!completedSteps.includes(currentStep)) {
+        setCompletedSteps(prev => [...prev, currentStep]);
+      }
+      setCurrentStep(currentStep + 1);
+      setError(null);
+    }
+  };
+
+  const previousStep = () => {
+    if (currentStep > 0) {
+      setCurrentStep(currentStep - 1);
+      setError(null);
+    }
+  };
+
+  // Complete the entire setup process
+  const completeSetup = async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch(`${API_BASE}/setup/complete`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          connected_services: Object.keys(serviceStates).filter(
+            id => serviceStates[id].connected
+          ),
+          configuration: setupConfig,
+          completed_at: new Date().toISOString()
+        })
+      });
+
+      if (response.ok) {
+        setCompletedSteps([0, 1, 2, 3, 4]);
+        if (onSetupComplete) {
+          onSetupComplete({
+            connectedServices: Object.keys(serviceStates).filter(
+              id => serviceStates[id].connected
+            ),
+            setupProgress
+          });
+        }
+      } else {
+        throw new Error('Failed to complete setup');
+      }
+    } catch (error) {
+      console.error('Setup completion error:', error);
+      setError('Failed to complete setup. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Check if we can proceed to next step
+  const canProceedToNext = () => {
+    switch (currentStep) {
+      case 0: // Welcome
+        return true;
+      case 1: // Required Services
+        return setupProgress.requiredServicesConnected > 0;
+      case 2: // Optional Services
+        return true; // Optional, can always skip
+      case 3: // Configuration
+        return true;
+      default:
+        return false;
+    }
+  };
+
+  // Render step content
+  const renderStepContent = () => {
+    switch (currentStep) {
+      case 0:
+        return renderWelcomeStep();
+      case 1:
+        return renderRequiredServicesStep();
+      case 2:
+        return renderOptionalServicesStep();
+      case 3:
+        return renderConfigurationStep();
+      case 4:
+        return renderCompletionStep();
+      default:
+        return <div>Unknown step</div>;
+    }
+  };
+
+  // Welcome step
+  const renderWelcomeStep = () => (
+    <div className="welcome-step">
+      <div className="welcome-header">
+        <div className="welcome-icon">🎵</div>
+        <h1>Welcome to MixView</h1>
+        <p>Let's get your music discovery platform set up in just a few steps!</p>
+      </div>
+
+      <div className="setup-overview">
+        <h3>What we'll set up:</h3>
+        <div className="overview-grid">
+          <div className="overview-item">
+            <span className="overview-icon">🔗</span>
+            <div>
+              <h4>Service Connections</h4>
+              <p>Connect your music accounts to unlock powerful features</p>
+            </div>
+          </div>
+          <div className="overview-item">
+            <span className="overview-icon">⚙️</span>
+            <div>
+              <h4>Configuration</h4>
+              <p>Customize your experience and preferences</p>
+            </div>
+          </div>
+          <div className="overview-item">
+            <span className="overview-icon">🚀</span>
+            <div>
+              <h4>Ready to Use</h4>
+              <p>Start discovering music connections immediately</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <InstructionPanel title="🔒 Privacy & Security" type="info">
+        <ul>
+          <li><strong>Secure OAuth:</strong> All connections use industry-standard OAuth authentication</li>
+          <li><strong>Read-Only Access:</strong> We only request read permissions to your music data</li>
+          <li><strong>Local Storage:</strong> Your credentials are encrypted and stored securely</li>
+          <li><strong>No Data Sharing:</strong> Your music data stays private and is never shared</li>
+        </ul>
+      </InstructionPanel>
+
+      <div className="setup-stats">
+        <div className="stat-item">
+          <span className="stat-number">{SERVICES_CONFIG.required.length}</span>
+          <span className="stat-label">Core Services</span>
+        </div>
+        <div className="stat-item">
+          <span className="stat-number">{SERVICES_CONFIG.optional.length}</span>
+          <span className="stat-label">Optional Services</span>
+        </div>
+        <div className="stat-item">
+          <span className="stat-number">~5</span>
+          <span className="stat-label">Minutes to Complete</span>
+        </div>
+      </div>
+    </div>
+  );
+
+  // Required services step
+  const renderRequiredServicesStep = () => (
+    <div className="required-services-step">
+      <div className="step-header">
+        <h2>Connect Required Services</h2>
+        <p>Connect at least one music service to start using MixView</p>
+      </div>
+
+      {setupProgress.requiredServicesConnected === 0 && (
+        <InstructionPanel title="Why do I need to connect a service?" type="info">
+          <p>MixView creates music connections by analyzing your listening data. To provide personalized 
+          recommendations and discover music relationships, we need access to your music library from 
+          at least one service.</p>
+        </InstructionPanel>
+      )}
+
+      <div className="services-grid">
+        {SERVICES_CONFIG.required.map(service => (
+          <ServiceCard
+            key={service.id}
+            service={service.id}
+            icon={service.icon}
+            title={service.name}
+            description={service.description}
+            isConnected={serviceStates[service.id]?.connected || false}
+            isRequired={true}
+            onConnect={() => setActiveServiceSetup(service.id)}
+            onManage={() => setActiveServiceSetup(service.id)}
+            disabled={serviceStates[service.id]?.loading || false}
+          />
+        ))}
+      </div>
+
+      {setupProgress.requiredServicesConnected > 0 && (
+        <div className="success-message">
+          <span className="success-icon">✅</span>
+          <div>
+            <h4>Great! You've connected {setupProgress.requiredServicesConnected} required service(s)</h4>
+            <p>You can now proceed to optional services or skip to configuration.</p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  // Optional services step
+  const renderOptionalServicesStep = () => (
+    <div className="optional-services-step">
+      <div className="step-header">
+        <h2>Connect Optional Services</h2>
+        <p>Add more services to enhance your music discovery experience</p>
+      </div>
+
+      <InstructionPanel title="🌟 Enhanced Features" type="success" collapsible>
+        <p>Each additional service you connect unlocks new features:</p>
+        <ul>
+          <li><strong>Last.fm:</strong> Extended listening history and detailed scrobble analytics</li>
+          <li><strong>Discogs:</strong> Comprehensive release database and collection tracking</li>
+          <li><strong>YouTube:</strong> Music videos and artist content discovery</li>
+        </ul>
+        <p><em>You can always add more services later through the Service Manager.</em></p>
+      </InstructionPanel>
+
+      <div className="services-grid">
+        {SERVICES_CONFIG.optional.map(service => (
+          <ServiceCard
+            key={service.id}
+            service={service.id}
+            icon={service.icon}
+            title={service.name}
+            description={service.description}
+            isConnected={serviceStates[service.id]?.connected || false}
+            isRequired={false}
+            onConnect={() => setActiveServiceSetup(service.id)}
+            onManage={() => setActiveServiceSetup(service.id)}
+            disabled={serviceStates[service.id]?.loading || false}
+          />
+        ))}
+      </div>
+
+      <div className="skip-option">
+        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+          <input
+            type="checkbox"
+            checked={setupConfig.skipOptionalServices}
+            onChange={(e) => setSetupConfig(prev => ({
+              ...prev,
+              skipOptionalServices: e.target.checked
+            }))}
+          />
+          <span>Skip optional services for now (I can add them later)</span>
+        </label>
+      </div>
+    </div>
+  );
+
+  // Configuration step
+  const renderConfigurationStep = () => (
+    <div className="configuration-step">
+      <div className="step-header">
+        <h2>Configuration</h2>
+        <p>Customize your MixView experience</p>
+      </div>
+
+      <div className="config-sections">
+        <div className="config-section">
+          <h3>Connected Services Summary</h3>
+          <div className="connected-services">
+            {Object.keys(serviceStates).filter(id => serviceStates[id].connected).map(serviceId => {
+              const service = [...SERVICES_CONFIG.required, ...SERVICES_CONFIG.optional]
+                .find(s => s.id === serviceId);
+              return service ? (
+                <div key={serviceId} className="connected-service">
+                  <span>{service.icon}</span>
+                  <span>{service.name}</span>
+                  <span className="status-badge">Connected</span>
+                </div>
+              ) : null;
+            })}
+          </div>
+        </div>
+
+        <div className="config-section">
+          <h3>Preferences</h3>
+          <div className="preferences-grid">
+            <label className="preference-item">
+              <input type="checkbox" defaultChecked />
+              <span>Enable automatic music discovery</span>
+            </label>
+            <label className="preference-item">
+              <input type="checkbox" defaultChecked />
+              <span>Show detailed artist information</span>
+            </label>
+            <label className="preference-item">
+              <input type="checkbox" defaultChecked />
+              <span>Enable playlist recommendations</span>
+            </label>
+            <label className="preference-item">
+              <input type="checkbox" />
+              <span>Enable beta features</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <InstructionPanel title="🎯 You're Almost Ready!" type="success">
+        <p>Your MixView setup is nearly complete! You have:</p>
+        <ul>
+          <li>✅ {setupProgress.requiredServicesConnected} required service(s) connected</li>
+          <li>✅ {setupProgress.optionalServicesConnected} optional service(s) connected</li>
+          <li>✅ Preferences configured</li>
+        </ul>
+        <p>Click "Complete Setup" to finalize your configuration and start using MixView!</p>
+      </InstructionPanel>
+    </div>
+  );
+
+  // Completion step
+  const renderCompletionStep = () => (
+    <div className="completion-step">
+      <div className="completion-header">
+        <div className="completion-icon">🎉</div>
+        <h1>Setup Complete!</h1>
+        <p>Your MixView music discovery platform is ready to use</p>
+      </div>
+
+      <div className="completion-stats">
+        <div className="completion-stat">
+          <span className="stat-number">{setupProgress.totalServicesConfigured}</span>
+          <span className="stat-label">Services Connected</span>
+        </div>
+        <div className="completion-stat">
+          <span className="stat-number">100%</span>
+          <span className="stat-label">Setup Complete</span>
+        </div>
+      </div>
+
+      <div className="next-steps">
+        <h3>🚀 What's Next?</h3>
+        <div className="next-steps-grid">
+          <div className="next-step">
+            <span className="step-icon">🔍</span>
+            <div>
+              <h4>Start Exploring</h4>
+              <p>Search for artists to discover music connections and recommendations</p>
+            </div>
+          </div>
+          <div className="next-step">
+            <span className="step-icon">📊</span>
+            <div>
+              <h4>View Your Data</h4>
+              <p>Explore your listening history and discover patterns in your music taste</p>
+            </div>
+          </div>
+          <div className="next-step">
+            <span className="step-icon">⚙️</span>
+            <div>
+              <h4>Manage Services</h4>
+              <p>Add more services or manage existing connections through Service Manager</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <InstructionPanel title="🎵 Tips for Getting Started" type="info">
+        <ul>
+          <li><strong>Search Artists:</strong> Try searching for your favorite artists to see connections</li>
+          <li><strong>Explore Recommendations:</strong> Check out personalized music suggestions</li>
+          <li><strong>Add More Services:</strong> Connect additional services anytime for more features</li>
+          <li><strong>Check Settings:</strong> Visit the settings page to customize your experience</li>
+        </ul>
+      </InstructionPanel>
+    </div>
+  );
+
+  // Main render
+  return (
+    <div className="main-setup-controller">
+      {/* Progress indicator */}
+      <ProgressIndicator
+        steps={SETUP_STEPS}
+        currentStep={currentStep}
+        completedSteps={completedSteps}
+      />
+
+      {/* Error display */}
+      {error && (
+        <ErrorMessage
+          message={error}
+          onClose={() => setError(null)}
+          type="error"
+        />
+      )}
+
+      {/* Loading overlay */}
+      {isLoading && (
+        <div className="loading-overlay">
+          <LoadingSpinner size="large" />
+          <p>Loading...</p>
+        </div>
+      )}
+
+      {/* Step content */}
+      <div className="step-content">
+        {renderStepContent()}
+      </div>
+
+      {/* Navigation */}
+      <div className="step-navigation">
+        <button
+          onClick={previousStep}
+          disabled={currentStep === 0 || isLoading}
+          className="nav-button secondary"
+        >
+          Previous
+        </button>
+        
+        <div className="nav-spacer" />
+
+        {currentStep === SETUP_STEPS.length - 1 ? (
+          <button
+            onClick={() => onSetupComplete && onSetupComplete()}
+            className="nav-button primary"
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <>
+                <LoadingSpinner size="small" color="white" />
+                <span>Finishing...</span>
+              </>
+            ) : (
+              'Get Started with MixView'
+            )}
+          </button>
+        ) : (
+          <button
+            onClick={currentStep === 3 ? completeSetup : nextStep}
+            disabled={!canProceedToNext() || isLoading}
+            className="nav-button primary"
+          >
+            {currentStep === 3 ? 'Complete Setup' : 'Next'}
+          </button>
+        )}
+      </div>
+
+      {/* Service setup modals */}
+      {activeServiceSetup && (
+        <Modal
+          isOpen={!!activeServiceSetup}
+          onClose={() => setActiveServiceSetup(null)}
+          title={`Connect ${SERVICES_CONFIG.required.concat(SERVICES_CONFIG.optional)
+            .find(s => s.id === activeServiceSetup)?.name}`}
+          size="large"
+        >
+          {activeServiceSetup === 'spotify' && (
+            <SpotifySetupEnhanced
+              onConnected={() => handleServiceConnected('spotify')}
+              onError={(error) => handleServiceError('spotify', error)}
+              onLoadingChange={(loading) => handleServiceLoadingChange('spotify', loading)}
+              isConnected={serviceStates.spotify?.connected || false}
+              error={serviceStates.spotify?.error}
+              loading={serviceStates.spotify?.loading || false}
+            />
+          )}
+          {/* Add other service components as they're created */}
+        </Modal>
+      )}
+
+      <style jsx>{`
+        .main-setup-controller {
+          max-width: 800px;
+          margin: 0 auto;
+          padding: 2rem;
+          min-height: 100vh;
+          display: flex;
+          flex-direction: column;
+          gap: 2rem;
+        }
+
+        .loading-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(255, 255, 255, 0.9);
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 1rem;
+          z-index: 1000;
+        }
+
+        .step-content {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          gap: 2rem;
+        }
+
+        /* Welcome Step */
+        .welcome-step {
+          text-align: center;
+          display: flex;
+          flex-direction: column;
+          gap: 2rem;
+        }
+
+        .welcome-header .welcome-icon {
+          font-size: 4rem;
+          margin-bottom: 1rem;
+        }
+
+        .welcome-header h1 {
+          margin: 0 0 1rem 0;
+          color: #333;
+          font-size: 2.5rem;
+        }
+
+        .welcome-header p {
+          margin: 0;
+          color: #666;
+          font-size: 1.2rem;
+        }
+
+        .overview-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+          gap: 1.5rem;
+          margin-top: 1rem;
+        }
+
+        .overview-item {
+          display: flex;
+          align-items: flex-start;
+          gap: 1rem;
+          text-align: left;
+        }
+
+        .overview-icon {
+          font-size: 2rem;
+          flex-shrink: 0;
+        }
+
+        .overview-item h4 {
+          margin: 0 0 0.5rem 0;
+          color: #333;
+        }
+
+        .overview-item p {
+          margin: 0;
+          color: #666;
+          font-size: 0.9rem;
+        }
+
+        .setup-stats {
+          display: flex;
+          justify-content: center;
+          gap: 3rem;
+          margin-top: 2rem;
+        }
+
+        .stat-item {
+          text-align: center;
+        }
+
+        .stat-number {
+          display: block;
+          font-size: 2.5rem;
+          font-weight: bold;
+          color: #667eea;
+          line-height: 1;
+        }
+
+        .stat-label {
+          display: block;
+          font-size: 0.9rem;
+          color: #666;
+          margin-top: 0.5rem;
+        }
+
+        /* Step Headers */
+        .step-header {
+          text-align: center;
+          margin-bottom: 2rem;
+        }
+
+        .step-header h2 {
+          margin: 0 0 0.5rem 0;
+          color: #333;
+          font-size: 2rem;
+        }
+
+        .step-header p {
+          margin: 0;
+          color: #666;
+          font-size: 1.1rem;
+        }
+
+        /* Services Grid */
+        .services-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+          gap: 1.5rem;
+          margin: 2rem 0;
+        }
+
+        /* Success Message */
+        .success-message {
+          display: flex;
+          align-items: flex-start;
+          gap: 1rem;
+          padding: 1.5rem;
+          background: #d4edda;
+          border: 1px solid #c3e6cb;
+          border-radius: 8px;
+          margin-top: 2rem;
+        }
+
+        .success-icon {
+          font-size: 1.5rem;
+          flex-shrink: 0;
+        }
+
+        .success-message h4 {
+          margin: 0 0 0.5rem 0;
+          color: #155724;
+        }
+
+        .success-message p {
+          margin: 0;
+          color: #155724;
+        }
+
+        /* Skip Option */
+        .skip-option {
+          margin-top: 2rem;
+          padding: 1rem;
+          background: #f8f9fa;
+          border-radius: 8px;
+          text-align: center;
+        }
+
+        /* Configuration */
+        .config-sections {
+          display: flex;
+          flex-direction: column;
+          gap: 2rem;
+        }
+
+        .config-section {
+          background: #f8f9fa;
+          padding: 1.5rem;
+          border-radius: 8px;
+        }
+
+        .config-section h3 {
+          margin: 0 0 1rem 0;
+          color: #333;
+        }
+
+        .connected-services {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 1rem;
+        }
+
+        .connected-service {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          padding: 0.5rem 1rem;
+          background: white;
+          border: 1px solid #dee2e6;
+          border-radius: 20px;
+          font-size: 0.9rem;
+        }
+
+        .status-badge {
+          background: #28a745;
+          color: white;
+          padding: 2px 8px;
+          border-radius: 10px;
+          font-size: 0.8rem;
+          font-weight: bold;
+        }
+
+        .preferences-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+          gap: 1rem;
+        }
+
+        .preference-item {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          cursor: pointer;
+          padding: 0.5rem;
+        }
+
+        /* Completion Step */
+        .completion-step {
+          text-align: center;
+          display: flex;
+          flex-direction: column;
+          gap: 2rem;
+        }
+
+        .completion-header .completion-icon {
+          font-size: 4rem;
+          margin-bottom: 1rem;
+        }
+
+        .completion-header h1 {
+          margin: 0 0 1rem 0;
+          color: #28a745;
+          font-size: 2.5rem;
+        }
+
+        .completion-stats {
+          display: flex;
+          justify-content: center;
+          gap: 3rem;
+          margin: 2rem 0;
+        }
+
+        .completion-stat {
+          text-align: center;
+        }
+
+        .next-steps {
+          text-align: left;
+        }
+
+        .next-steps h3 {
+          text-align: center;
+          margin-bottom: 1.5rem;
+          color: #333;
+        }
+
+        .next-steps-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+          gap: 1.5rem;
+        }
+
+        .next-step {
+          display: flex;
+          align-items: flex-start;
+          gap: 1rem;
+          padding: 1.5rem;
+          background: #f8f9fa;
+          border-radius: 8px;
+          border: 2px solid transparent;
+          transition: border-color 0.3s ease;
+        }
+
+        .next-step:hover {
+          border-color: #667eea;
+        }
+
+        .step-icon {
+          font-size: 1.5rem;
+          flex-shrink: 0;
+        }
+
+        .next-step h4 {
+          margin: 0 0 0.5rem 0;
+          color: #333;
+        }
+
+        .next-step p {
+          margin: 0;
+          color: #666;
+          font-size: 0.9rem;
+        }
+
+        /* Navigation */
+        .step-navigation {
+          display: flex;
+          align-items: center;
+          gap: 1rem;
+          padding-top: 2rem;
+          border-top: 1px solid #e9ecef;
+        }
+
+        .nav-spacer {
+          flex: 1;
+        }
+
+        .nav-button {
+          padding: 12px 24px;
+          border: none;
+          border-radius: 6px;
+          font-size: 16px;
+          font-weight: 500;
+          cursor: pointer;
+          transition: all 0.3s ease;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .nav-button.primary {
+          background: #667eea;
+          color: white;
+        }
+
+        .nav-button.primary:hover:not(:disabled) {
+          background: #5a6fd8;
+          transform: translateY(-1px);
+        }
+
+        .nav-button.secondary {
+          background: #6c757d;
+          color: white;
+        }
+
+        .nav-button.secondary:hover:not(:disabled) {
+          background: #5a6268;
+        }
+
+        .nav-button:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+          transform: none;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+          .main-setup-controller {
+            padding: 1rem;
+          }
+
+          .services-grid {
+            grid-template-columns: 1fr;
+          }
+
+          .setup-stats {
+            gap: 2rem;
+          }
+
+          .completion-stats {
+            gap: 2rem;
+          }
+
+          .next-steps-grid {
+            grid-template-columns: 1fr;
+          }
+
+          .overview-grid {
+            grid-template-columns: 1fr;
+          }
+
+          .preferences-grid {
+            grid-template-columns: 1fr;
+          }
+
+          .step-navigation {
+            flex-direction: column;
+            gap: 1rem;
+          }
+
+          .nav-button {
+            width: 100%;
+            justify-content: center;
+          }
+
+          .nav-spacer {
+            display: none;
+          }
+        }
+      `}</style>
+    </div>
+  );
+}
+
+export default MainSetupController;
