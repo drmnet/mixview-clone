@@ -148,34 +148,24 @@ try:
 except Exception as e:
     logger.error(f"Failed to load routers: {e}")
 
-# Setup status endpoint for first-run detection
 @app.get("/setup/status")
 async def setup_status():
     """Check if the application requires initial setup"""
     try:
         config_status = Config.validate_config()
-        has_services = any(config_status.values())
         
-        # Consider it requiring setup if no services are configured
-        requires_setup = not has_services
+        # Only count services that actually need configuration
+        configurable_services = ['spotify', 'lastfm', 'discogs']
+        has_configured_services = any(config_status.get(service, False) for service in configurable_services)
         
         return {
-            "requires_setup": requires_setup,
+            "requires_setup": not has_configured_services,
             "services_configured": config_status,
-            "reason": "No services configured" if requires_setup else "Setup complete",
-            "debug_info": {
-                "config_status": config_status,
-                "has_services": has_services
-            }
+            "reason": "No configurable services set up" if not has_configured_services else "Setup complete"
         }
     except Exception as e:
         logger.error(f"Setup status check failed: {e}")
-        return {
-            "requires_setup": True, 
-            "reason": f"Error checking setup: {str(e)}",
-            "services_configured": {}
-        }
-
+        return {"requires_setup": True, "reason": f"Error checking setup: {str(e)}"}
 # Root endpoint
 @app.get("/")
 async def root():

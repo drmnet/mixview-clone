@@ -4,12 +4,18 @@ function SearchBar({ onSearch, loading = false }) {
   const [query, setQuery] = useState('');
   const [searchType, setSearchType] = useState('all');
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (query.trim() && !loading) {
-      onSearch(query.trim(), searchType);
+const handleSubmit = (e) => {
+  e.preventDefault();
+  if (query.trim() && !loading) {
+    // Check if user is logged in before searching
+    const token = localStorage.getItem('token');
+    if (!token) {
+      alert('Please log in first to search for music');
+      return;
     }
-  };
+    onSearch(query.trim(), searchType);
+  }
+};
 
   const handleClear = () => {
     setQuery('');
