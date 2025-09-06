@@ -156,14 +156,25 @@ async def setup_status():
         config_status = Config.validate_config()
         has_services = any(config_status.values())
         
+        # Consider it requiring setup if no services are configured
+        requires_setup = not has_services
+        
         return {
-            "requires_setup": not has_services,
+            "requires_setup": requires_setup,
             "services_configured": config_status,
-            "reason": "No services configured" if not has_services else "Setup complete"
+            "reason": "No services configured" if requires_setup else "Setup complete",
+            "debug_info": {
+                "config_status": config_status,
+                "has_services": has_services
+            }
         }
     except Exception as e:
         logger.error(f"Setup status check failed: {e}")
-        return {"requires_setup": True, "reason": f"Error checking setup: {str(e)}"}
+        return {
+            "requires_setup": True, 
+            "reason": f"Error checking setup: {str(e)}",
+            "services_configured": {}
+        }
 
 # Root endpoint
 @app.get("/")
