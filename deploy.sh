@@ -725,7 +725,7 @@ echo "  Database:  $($COMPOSE_CMD exec -T db pg_isready -U mixview -d mixview >/
 echo ""
 
 # Check for any failed containers
-failed_containers=$($COMPOSE_CMD ps --filter "status=exited" --format "table {{.Service}}" | tail -n +2)
+failed_containers=$($COMPOSE_CMD ps --filter "status=exited" --format "{{.Service}}" 2>/dev/null | tail -n +2)
 if [ ! -z "$failed_containers" ]; then
     echo "⚠️  WARNING: Some containers have exited:"
     echo "$failed_containers"
