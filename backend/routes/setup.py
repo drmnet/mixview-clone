@@ -11,7 +11,7 @@ from pydantic import BaseModel
 # Import your existing database and auth systems
 from db_package.database import get_db
 from db_package.models import User, SetupProgress, ServerConfiguration
-from encryption import encrypt_credential, decrypt_credential
+from encryption import credential_encryption
 from routes.auth import get_current_user
 
 # Import your existing service management (if available)
@@ -21,6 +21,18 @@ try:
 except ImportError:
     HAS_USER_SERVICES = False
     logging.warning("UserServiceManager not available - setup wizard will have limited functionality")
+
+def encrypt_credential(value: str) -> str:
+    """Encrypt a single credential value"""
+    return credential_encryption.encrypt_credentials({'value': value})
+
+def decrypt_credential(encrypted_value: str) -> str:
+    """Decrypt a single credential value"""
+    try:
+        decrypted = credential_encryption.decrypt_credentials(encrypted_value)
+        return decrypted.get('value', '')
+    except:
+        return ''
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/setup", tags=["setup"])
