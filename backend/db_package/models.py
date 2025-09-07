@@ -3,7 +3,8 @@
 
 import sqlalchemy
 from sqlalchemy import (
-    Column, Integer, String, Float, ForeignKey, Table, Boolean, DateTime, Text, JSON
+    Column, Integer, String, Float, ForeignKey, Table, Boolean, DateTime, Text, JSON,
+    UniqueConstraint, func
 )
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
