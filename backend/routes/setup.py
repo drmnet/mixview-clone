@@ -3,6 +3,7 @@
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from typing import Dict, Any, List, Optional
 import os
 import logging
@@ -446,6 +447,32 @@ async def save_server_config(
         logger.error(f"Error saving server config: {e}")
         db.rollback()
         raise HTTPException(status_code=500, detail="Failed to save server configuration")
+
+@router.delete("/server-config/{service_name}")
+async def delete_server_config(
+    service_name: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Delete server configuration for a service"""
+    try:
+        deleted_count = db.query(ServerConfiguration).filter(
+            ServerConfiguration.service_name == service_name
+        ).delete()
+        
+        db.commit()
+        logger.info(f"Deleted {deleted_count} server configurations for {service_name}")
+        
+        return {
+            "success": True,
+            "message": f"Server configuration deleted for {service_name}",
+            "deleted_count": deleted_count
+        }
+        
+    except Exception as e:
+        logger.error(f"Error deleting server config: {e}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Failed to delete server configuration")
 
 @router.get("/server-config/{service_name}")
 async def get_server_config_status(
