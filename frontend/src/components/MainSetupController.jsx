@@ -541,10 +541,12 @@ function MainSetupController({ onSetupComplete, initialStep = 0 }) {
 
   // Check overall setup completion status
   const checkSetupStatus = async () => {
+    if (!authToken) return;
+
     try {
       const response = await fetch(`${API_BASE}/setup/status`, {
         headers: {
-          'Authorization': `Bearer ${token}`,
+          'Authorization': `Bearer ${authToken}`,
           'Content-Type': 'application/json'
         }
       });
@@ -1282,7 +1284,7 @@ function MainSetupController({ onSetupComplete, initialStep = 0 }) {
         }
 
         /* Step Headers */
-        
+
         /* Account Creation Step */
         .account-creation-step {
           display: flex;
