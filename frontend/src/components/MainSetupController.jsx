@@ -21,7 +21,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { SetupUIComponents } from './SetupUIComponents';
+import { SetupUIComponents } from "../shared/SetupUIComponents";
 import SpotifySetupEnhanced from './SpotifySetupEnhanced';
 import LastFmSetupEnhanced from './LastFmSetupEnhanced';
 import DiscogsSetupEnhanced from './DiscogsSetupEnhanced';
