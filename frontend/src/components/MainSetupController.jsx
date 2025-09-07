@@ -184,6 +184,30 @@ function MainSetupController({ onSetupComplete, initialStep = 0 }) {
     initializeSetup();
   }, []);
 
+  // Update setup progress based on service connections
+  const updateSetupProgress = useCallback((states) => {
+    const requiredConnected = SERVICES_CONFIG.required.filter(
+      service => states[service.id]?.connected
+    ).length;
+
+    const optionalConnected = SERVICES_CONFIG.optional.filter(
+      service => states[service.id]?.connected
+    ).length;
+
+    const totalConfigured = requiredConnected + optionalConnected;
+
+    setSetupProgress({
+      requiredServicesConnected: requiredConnected,
+      optionalServicesConnected: optionalConnected,
+      totalServicesConfigured: totalConfigured
+    });
+
+    // Auto-advance steps based on progress
+    if (requiredConnected > 0 && !completedSteps.includes(1)) {
+      setCompletedSteps(prev => [...prev, 1]);
+    }
+  }, [completedSteps]);
+
   // Check service statuses
   const initializeSetup = async () => {
     setIsLoading(true);
@@ -253,30 +277,6 @@ function MainSetupController({ onSetupComplete, initialStep = 0 }) {
       console.error('Error checking setup status:', error);
     }
   };
-
-  // Update setup progress based on service connections
-  const updateSetupProgress = useCallback((states) => {
-    const requiredConnected = SERVICES_CONFIG.required.filter(
-      service => states[service.id]?.connected
-    ).length;
-
-    const optionalConnected = SERVICES_CONFIG.optional.filter(
-      service => states[service.id]?.connected
-    ).length;
-
-    const totalConfigured = requiredConnected + optionalConnected;
-
-    setSetupProgress({
-      requiredServicesConnected: requiredConnected,
-      optionalServicesConnected: optionalConnected,
-      totalServicesConfigured: totalConfigured
-    });
-
-    // Auto-advance steps based on progress
-    if (requiredConnected > 0 && !completedSteps.includes(1)) {
-      setCompletedSteps(prev => [...prev, 1]);
-    }
-  }, [completedSteps]);
 
   // Navigation functions
   const goToStep = (stepIndex) => {
