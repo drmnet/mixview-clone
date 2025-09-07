@@ -279,7 +279,7 @@ const closeServiceSetup = useCallback(() => {
   }, [completedSteps]);
 
   // Handle service connection updates
-  const handleServiceConnected = (serviceId) => {
+  const handleServiceConnected = useCallback((serviceId) => {
     setServiceStates(prev => {
       const updated = {
         ...prev,
@@ -293,13 +293,13 @@ const closeServiceSetup = useCallback(() => {
       updateSetupProgress(updated);
       return updated;
     });
-    
+  
     setActiveServiceSetup(null);
     setError(null);
-  };
+  }, [updateSetupProgress]);
 
   // Handle service connection errors
-  const handleServiceError = (serviceId, errorMessage) => {
+  const handleServiceError = useCallback((serviceId, errorMessage) => {
     setServiceStates(prev => ({
       ...prev,
       [serviceId]: {
@@ -309,10 +309,10 @@ const closeServiceSetup = useCallback(() => {
       }
     }));
     setError(errorMessage);
-  };
+  }, []);
 
   // Handle service loading state changes
-  const handleServiceLoadingChange = (serviceId, loading) => {
+  const handleServiceLoadingChange = useCallback((serviceId, loading) => {
     setServiceStates(prev => ({
       ...prev,
       [serviceId]: {
@@ -320,7 +320,7 @@ const closeServiceSetup = useCallback(() => {
         loading: loading
       }
     }));
-  };
+  }, []);
 
   // Navigation functions
   const goToStep = (stepIndex) => {
@@ -778,16 +778,16 @@ const closeServiceSetup = useCallback(() => {
             .find(s => s.id === activeServiceSetup)?.name}`}
           size="large"
         >
-      {activeServiceSetup === 'spotify' && (
-        <SpotifySetupEnhanced
-          onConnected={handleSpotifyConnected}
-          onError={handleSpotifyError}
-          onLoadingChange={handleSpotifyLoadingChange}
-          isConnected={serviceStates.spotify?.connected || false}
-          error={serviceStates.spotify?.error}
-          loading={serviceStates.spotify?.loading || false}
-        />
-      )}
+          {activeServiceSetup === 'spotify' && (
+            <SpotifySetupEnhanced
+              onConnected={handleSpotifyConnected}
+              onError={handleSpotifyError}
+              onLoadingChange={handleSpotifyLoadingChange}
+              isConnected={serviceStates.spotify?.connected || false}
+              error={serviceStates.spotify?.error}
+              loading={serviceStates.spotify?.loading || false}
+            />
+          )}
 
       <style jsx>{`
         .main-setup-controller {
