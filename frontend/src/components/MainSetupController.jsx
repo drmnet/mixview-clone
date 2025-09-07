@@ -31,6 +31,234 @@ import YoutubeSetupEnhanced from './YoutubeSetupEnhanced';
 // import DiscogsSetupEnhanced from './services/DiscogsSetupEnhanced';
 // import YoutubeSetupEnhanced from './services/YoutubeSetupEnhanced';
 
+// Local Account Form Component
+const LocalAccountForm = ({ onAccountCreated, onError, loading }) => {
+  const [isLogin, setIsLogin] = useState(false);
+  const [formData, setFormData] = useState({
+    username: '',
+    password: '',
+    confirmPassword: ''
+  });
+  const [formErrors, setFormErrors] = useState({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const API_BASE = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8001';
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+    
+    // Clear field error when user starts typing
+    if (formErrors[name]) {
+      setFormErrors(prev => ({ ...prev, [name]: null }));
+    }
+  };
+
+  const validateForm = () => {
+    const errors = {};
+    
+    if (!formData.username) {
+      errors.username = 'Username is required';
+    } else if (formData.username.length < 3) {
+      errors.username = 'Username must be at least 3 characters';
+    } else if (!/^[a-zA-Z0-9_-]+$/.test(formData.username)) {
+      errors.username = 'Username can only contain letters, numbers, hyphens, and underscores';
+    }
+    
+    if (!formData.password) {
+      errors.password = 'Password is required';
+    } else if (formData.password.length < 6) {
+      errors.password = 'Password must be at least 6 characters';
+    }
+    
+    if (!isLogin && formData.password !== formData.confirmPassword) {
+      errors.confirmPassword = 'Passwords do not match';
+    }
+    
+    return errors;
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    const errors = validateForm();
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      return;
+    }
+    
+    setIsSubmitting(true);
+    
+    try {
+      const endpoint = isLogin ? '/auth/login' : '/auth/register';
+      const payload = {
+        username: formData.username,
+        password: formData.password
+      };
+
+      const response = await fetch(`${API_BASE}${endpoint}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.detail || `${isLogin ? 'Login' : 'Registration'} failed`);
+      }
+
+      if (isLogin) {
+        // Login successful - get user info
+        const userResponse = await fetch(`${API_BASE}/auth/me`, {
+          headers: {
+            'Authorization': `Bearer ${data.access_token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (userResponse.ok) {
+          const userData = await userResponse.json();
+          onAccountCreated(userData, data.access_token);
+        } else {
+          throw new Error('Failed to get user information');
+        }
+      } else {
+        // Registration successful - now login
+        const loginResponse = await fetch(`${API_BASE}/auth/login`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            username: formData.username,
+            password: formData.password
+          })
+        });
+
+        const loginData = await loginResponse.json();
+        
+        if (loginResponse.ok) {
+          const userResponse = await fetch(`${API_BASE}/auth/me`, {
+            headers: {
+              'Authorization': `Bearer ${loginData.access_token}`,
+              'Content-Type': 'application/json'
+            }
+          });
+
+          if (userResponse.ok) {
+            const userData = await userResponse.json();
+            onAccountCreated(userData, loginData.access_token);
+          }
+        } else {
+          throw new Error('Failed to login after registration');
+        }
+      }
+    } catch (error) {
+      console.error(`${isLogin ? 'Login' : 'Registration'} error:`, error);
+      onError(error.message || `${isLogin ? 'Login' : 'Registration'} failed`);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="local-account-form">
+      <div className="form-toggle">
+        <button
+          type="button"
+          onClick={() => setIsLogin(false)}
+          className={`toggle-button ${!isLogin ? 'active' : ''}`}
+        >
+          Create Account
+        </button>
+        <button
+          type="button"
+          onClick={() => setIsLogin(true)}
+          className={`toggle-button ${isLogin ? 'active' : ''}`}
+        >
+          Sign In
+        </button>
+      </div>
+
+      <form onSubmit={handleSubmit} className="account-form">
+        <div className="form-group">
+          <label htmlFor="username">Username</label>
+          <input
+            type="text"
+            id="username"
+            name="username"
+            value={formData.username}
+            onChange={handleInputChange}
+            disabled={isSubmitting || loading}
+            placeholder="Enter your username"
+            className={formErrors.username ? 'error' : ''}
+          />
+          {formErrors.username && <span className="error-text">{formErrors.username}</span>}
+        </div>
+
+        <div className="form-group">
+          <label htmlFor="password">Password</label>
+          <input
+            type="password"
+            id="password"
+            name="password"
+            value={formData.password}
+            onChange={handleInputChange}
+            disabled={isSubmitting || loading}
+            placeholder="Enter your password"
+            className={formErrors.password ? 'error' : ''}
+          />
+          {formErrors.password && <span className="error-text">{formErrors.password}</span>}
+        </div>
+
+        {!isLogin && (
+          <div className="form-group">
+            <label htmlFor="confirmPassword">Confirm Password</label>
+            <input
+              type="password"
+              id="confirmPassword"
+              name="confirmPassword"
+              value={formData.confirmPassword}
+              onChange={handleInputChange}
+              disabled={isSubmitting || loading}
+              placeholder="Confirm your password"
+              className={formErrors.confirmPassword ? 'error' : ''}
+            />
+            {formErrors.confirmPassword && <span className="error-text">{formErrors.confirmPassword}</span>}
+          </div>
+        )}
+
+        <button
+          type="submit"
+          disabled={isSubmitting || loading}
+          className="submit-button"
+        >
+          {isSubmitting || loading ? (
+            <>
+              <LoadingSpinner size="small" color="white" />
+              <span>{isLogin ? 'Signing In...' : 'Creating Account...'}</span>
+            </>
+          ) : (
+            <span>{isLogin ? 'Sign In' : 'Create Account'}</span>
+          )}
+        </button>
+      </form>
+
+      {isLogin && (
+        <div className="login-note">
+          <p>Don't have an account? Click "Create Account" above to register.</p>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const {
   LoadingSpinner,
   ErrorMessage,
@@ -42,6 +270,7 @@ const {
 
 // Setup wizard configuration
 const SETUP_STEPS = [
+  'Account Creation',
   'Welcome',
   'Required Services',
   'Optional Services',
@@ -96,6 +325,11 @@ function MainSetupController({ onSetupComplete, initialStep = 0 }) {
   const [completedSteps, setCompletedSteps] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
+
+// Account creation state
+  const [accountCreated, setAccountCreated] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [authToken, setAuthToken] = useState(localStorage.getItem('token'));
 
   // Service connection states
   const [serviceStates, setServiceStates] = useState({});
@@ -194,18 +428,68 @@ function MainSetupController({ onSetupComplete, initialStep = 0 }) {
   const handleYoutubeError = useCallback((error) => handleServiceError('youtube', error), [handleServiceError]);
   const handleYoutubeLoadingChange = useCallback((loading) => handleServiceLoadingChange('youtube', loading), [handleServiceLoadingChange]);
 
+  // Account creation handlers
+  const handleAccountCreated = useCallback((userData, token) => {
+    setCurrentUser(userData);
+    setAuthToken(token);
+    localStorage.setItem('token', token);
+    localStorage.setItem('user', JSON.stringify(userData));
+    setAccountCreated(true);
+    
+    // Mark account creation step as completed and advance
+    if (!completedSteps.includes(0)) {
+      setCompletedSteps(prev => [...prev, 0]);
+    }
+    setCurrentStep(1); // Move to Welcome step
+    setError(null);
+  }, [completedSteps]);
+
+  const handleAccountError = useCallback((errorMessage) => {
+    setError(errorMessage);
+  }, []);
+
   // Modal close handler
   const closeServiceSetup = useCallback(() => {
     setActiveServiceSetup(null);
   }, []);
 
   const API_BASE = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8001';
-  const token = localStorage.getItem('token');
 
   // Initialize setup controller
   useEffect(() => {
-    initializeSetup();
-  }, []);
+    if (authToken) {
+      initializeSetup();
+    }
+  }, [authToken]);
+
+  // Check if user is already authenticated
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    const savedUser = localStorage.getItem('user');
+    
+    if (token && savedUser) {
+      try {
+        const userData = JSON.parse(savedUser);
+        setCurrentUser(userData);
+        setAuthToken(token);
+        setAccountCreated(true);
+        
+        // Mark account creation as completed
+        if (!completedSteps.includes(0)) {
+          setCompletedSteps(prev => [...prev, 0]);
+        }
+        
+        // If we're on step 0 and account is created, move to step 1
+        if (currentStep === 0) {
+          setCurrentStep(1);
+        }
+      } catch (error) {
+        console.error('Error parsing saved user data:', error);
+        localStorage.removeItem('user');
+        localStorage.removeItem('token');
+      }
+    }
+  }, [completedSteps, currentStep]);
 
   // Check service statuses
   const initializeSetup = async () => {
@@ -223,10 +507,12 @@ function MainSetupController({ onSetupComplete, initialStep = 0 }) {
 
   // Check the status of all configured services
   const checkAllServiceStatuses = async () => {
+    if (!authToken) return;
+
     try {
       const response = await fetch(`${API_BASE}/oauth/services/status`, {
         headers: {
-          'Authorization': `Bearer ${token}`,
+          'Authorization': `Bearer ${authToken}`,
           'Content-Type': 'application/json'
         }
       });
@@ -305,12 +591,17 @@ function MainSetupController({ onSetupComplete, initialStep = 0 }) {
 
   // Complete the entire setup process
   const completeSetup = async () => {
+    if (!authToken) {
+      setError('Authentication required to complete setup');
+      return;
+    }    
+    
     setIsLoading(true);
     try {
       const response = await fetch(`${API_BASE}/setup/complete`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`,
+          'Authorization': `Bearer ${authToken}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
@@ -346,13 +637,15 @@ function MainSetupController({ onSetupComplete, initialStep = 0 }) {
   // Check if we can proceed to next step
   const canProceedToNext = () => {
     switch (currentStep) {
-      case 0: // Welcome
+      case 0: // Account Creation
+        return accountCreated;
+      case 1: // Welcome
         return true;
-      case 1: // Required Services
+      case 2: // Required Services
         return setupProgress.requiredServicesConnected > 0;
-      case 2: // Optional Services
+      case 3: // Optional Services
         return true; // Optional, can always skip
-      case 3: // Configuration
+      case 4: // Configuration
         return true;
       default:
         return false;
@@ -363,19 +656,110 @@ function MainSetupController({ onSetupComplete, initialStep = 0 }) {
   const renderStepContent = () => {
     switch (currentStep) {
       case 0:
-        return renderWelcomeStep();
+        return renderLocalAccountCreationStep();
       case 1:
-        return renderRequiredServicesStep();
+        return renderWelcomeStep();
       case 2:
-        return renderOptionalServicesStep();
+        return renderRequiredServicesStep();
       case 3:
-        return renderConfigurationStep();
+        return renderOptionalServicesStep();
       case 4:
+        return renderConfigurationStep();
+      case 5:
         return renderCompletionStep();
       default:
         return <div>Unknown step</div>;
     }
   };
+
+  // Local account creation step
+  const renderLocalAccountCreationStep = () => (
+    <div className="account-creation-step">
+      <div className="account-header">
+        <div className="account-icon">👤</div>
+        <h1>Create Your MixView Account</h1>
+        <p>First, let's create your personal MixView account to get started.</p>
+      </div>
+
+      <div className="account-benefits">
+        <h3>Your MixView account provides:</h3>
+        <div className="benefits-grid">
+          <div className="benefit-item">
+            <span className="benefit-icon">🔒</span>
+            <div>
+              <h4>Secure & Private</h4>
+              <p>Your account data is stored locally and encrypted</p>
+            </div>
+          </div>
+          <div className="benefit-item">
+            <span className="benefit-icon">🎵</span>
+            <div>
+              <h4>Music Service Integration</h4>
+              <p>Connect multiple music services under one account</p>
+            </div>
+          </div>
+          <div className="benefit-item">
+            <span className="benefit-icon">📊</span>
+            <div>
+              <h4>Personalized Analytics</h4>
+              <p>Track your listening habits and discover new music</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {!accountCreated ? (
+        <div className="account-form-container">
+          <InstructionPanel title="🔐 Account Security" type="info">
+            <ul>
+              <li><strong>Local Storage:</strong> Your account is created and stored locally - no external registration required</li>
+              <li><strong>Encrypted Passwords:</strong> All passwords are hashed and stored securely</li>
+              <li><strong>Privacy First:</strong> Your personal data never leaves your local environment</li>
+              <li><strong>Full Control:</strong> You own and control all your music data and connections</li>
+            </ul>
+          </InstructionPanel>
+
+          <div className="account-form-wrapper">
+            <LocalAccountForm 
+              onAccountCreated={handleAccountCreated}
+              onError={handleAccountError}
+              loading={isLoading}
+            />
+          </div>
+        </div>
+      ) : (
+        <div className="account-success">
+          <div className="success-header">
+            <span className="success-icon">✅</span>
+            <h3>Welcome, {currentUser?.username}!</h3>
+            <p>Your MixView account has been created successfully.</p>
+          </div>
+
+          <div className="account-summary">
+            <div className="summary-item">
+              <span className="summary-label">Username:</span>
+              <span className="summary-value">{currentUser?.username}</span>
+            </div>
+            <div className="summary-item">
+              <span className="summary-label">Account Created:</span>
+              <span className="summary-value">
+                {currentUser?.created_at ? new Date(currentUser.created_at).toLocaleDateString() : 'Today'}
+              </span>
+            </div>
+            <div className="summary-item">
+              <span className="summary-label">Status:</span>
+              <span className="summary-value status-active">Active</span>
+            </div>
+          </div>
+
+          <InstructionPanel title="🎉 Ready for the Next Step!" type="success">
+            <p>Your account is ready! Now we'll guide you through connecting your music services 
+            to unlock the full power of MixView's music discovery features.</p>
+          </InstructionPanel>
+        </div>
+      )}
+    </div>
+  );
 
   // Welcome step
   const renderWelcomeStep = () => (
@@ -383,11 +767,11 @@ function MainSetupController({ onSetupComplete, initialStep = 0 }) {
       <div className="welcome-header">
         <div className="welcome-icon">🎵</div>
         <h1>Welcome to MixView</h1>
-        <p>Let's get your music discovery platform set up in just a few steps!</p>
+        <p>Great! Now let's connect your music services to unlock powerful discovery features!</p>
       </div>
 
       <div className="setup-overview">
-        <h3>What we'll set up:</h3>
+        <h3>What we'll set up next:</h3>
         <div className="overview-grid">
           <div className="overview-item">
             <span className="overview-icon">🔗</span>
@@ -436,6 +820,13 @@ function MainSetupController({ onSetupComplete, initialStep = 0 }) {
           <span className="stat-label">Minutes to Complete</span>
         </div>
       </div>
+      {currentUser && (
+        <div className="user-welcome">
+          <InstructionPanel title={`👋 Welcome back, ${currentUser.username}!`} type="success">
+            <p>Your MixView account is active and ready. Let's connect your music services to start discovering amazing music connections!</p>
+          </InstructionPanel>
+        </div>
+      )}
     </div>
   );
 
@@ -715,11 +1106,11 @@ function MainSetupController({ onSetupComplete, initialStep = 0 }) {
           </button>
         ) : (
           <button
-            onClick={currentStep === 3 ? completeSetup : nextStep}
+            onClick={currentStep === 4 ? completeSetup : nextStep}
             disabled={!canProceedToNext() || isLoading}
             className="nav-button primary"
           >
-            {currentStep === 3 ? 'Complete Setup' : 'Next'}
+            {currentStep === 4 ? 'Complete Setup' : 'Next'}
           </button>
         )}
       </div>
@@ -891,6 +1282,284 @@ function MainSetupController({ onSetupComplete, initialStep = 0 }) {
         }
 
         /* Step Headers */
+        
+        /* Account Creation Step */
+        .account-creation-step {
+          display: flex;
+          flex-direction: column;
+          gap: 2rem;
+        }
+
+        .account-header {
+          text-align: center;
+        }
+
+        .account-header .account-icon {
+          font-size: 4rem;
+          margin-bottom: 1rem;
+        }
+
+        .account-header h1 {
+          margin: 0 0 1rem 0;
+          color: #333;
+          font-size: 2.5rem;
+        }
+
+        .account-header p {
+          margin: 0;
+          color: #666;
+          font-size: 1.2rem;
+        }
+
+        .account-benefits h3 {
+          text-align: center;
+          margin-bottom: 1.5rem;
+          color: #333;
+        }
+
+        .benefits-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+          gap: 1.5rem;
+          margin-bottom: 2rem;
+        }
+
+        .benefit-item {
+          display: flex;
+          align-items: flex-start;
+          gap: 1rem;
+          padding: 1.5rem;
+          background: #f8f9fa;
+          border-radius: 8px;
+          border: 2px solid transparent;
+          transition: border-color 0.3s ease;
+        }
+
+        .benefit-item:hover {
+          border-color: #667eea;
+        }
+
+        .benefit-icon {
+          font-size: 2rem;
+          flex-shrink: 0;
+        }
+
+        .benefit-item h4 {
+          margin: 0 0 0.5rem 0;
+          color: #333;
+        }
+
+        .benefit-item p {
+          margin: 0;
+          color: #666;
+          font-size: 0.9rem;
+        }
+
+        .account-form-container {
+          display: flex;
+          flex-direction: column;
+          gap: 2rem;
+        }
+
+        .account-form-wrapper {
+          max-width: 500px;
+          margin: 0 auto;
+          width: 100%;
+        }
+
+        .account-success {
+          text-align: center;
+          display: flex;
+          flex-direction: column;
+          gap: 2rem;
+        }
+
+        .success-header {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 1rem;
+        }
+
+        .success-header .success-icon {
+          font-size: 3rem;
+        }
+
+        .success-header h3 {
+          margin: 0;
+          color: #28a745;
+          font-size: 1.8rem;
+        }
+
+        .success-header p {
+          margin: 0;
+          color: #666;
+          font-size: 1.1rem;
+        }
+
+        .account-summary {
+          background: #f8f9fa;
+          padding: 2rem;
+          border-radius: 8px;
+          border-left: 4px solid #28a745;
+          max-width: 400px;
+          margin: 0 auto;
+        }
+
+        .summary-item {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 0.5rem 0;
+          border-bottom: 1px solid #e9ecef;
+        }
+
+        .summary-item:last-child {
+          border-bottom: none;
+        }
+
+        .summary-label {
+          font-weight: 600;
+          color: #333;
+        }
+
+        .summary-value {
+          color: #666;
+        }
+
+        .status-active {
+          color: #28a745 !important;
+          font-weight: 600;
+        }
+
+        /* Local Account Form */
+        .local-account-form {
+          display: flex;
+          flex-direction: column;
+          gap: 2rem;
+        }
+
+        .form-toggle {
+          display: flex;
+          background: #f8f9fa;
+          border-radius: 8px;
+          padding: 4px;
+          margin-bottom: 1rem;
+        }
+
+        .toggle-button {
+          flex: 1;
+          padding: 12px 16px;
+          background: transparent;
+          border: none;
+          border-radius: 6px;
+          font-size: 14px;
+          font-weight: 500;
+          cursor: pointer;
+          transition: all 0.3s ease;
+          color: #666;
+        }
+
+        .toggle-button.active {
+          background: #667eea;
+          color: white;
+          box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);
+        }
+
+        .account-form {
+          display: flex;
+          flex-direction: column;
+          gap: 1.5rem;
+        }
+
+        .form-group {
+          display: flex;
+          flex-direction: column;
+          gap: 0.5rem;
+        }
+
+        .form-group label {
+          font-weight: 600;
+          color: #333;
+          font-size: 14px;
+        }
+
+        .form-group input {
+          padding: 12px 16px;
+          border: 2px solid #ddd;
+          border-radius: 6px;
+          font-size: 16px;
+          transition: border-color 0.3s ease;
+          background: white;
+        }
+
+        .form-group input:focus {
+          outline: none;
+          border-color: #667eea;
+          box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .form-group input.error {
+          border-color: #dc3545;
+        }
+
+        .form-group input:disabled {
+          background: #f8f9fa;
+          cursor: not-allowed;
+        }
+
+        .error-text {
+          color: #dc3545;
+          font-size: 12px;
+          margin-top: 4px;
+        }
+
+        .submit-button {
+          padding: 14px 24px;
+          background: #667eea;
+          color: white;
+          border: none;
+          border-radius: 6px;
+          font-size: 16px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.3s ease;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          margin-top: 1rem;
+        }
+
+        .submit-button:hover:not(:disabled) {
+          background: #5a6fd8;
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .submit-button:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+          transform: none;
+          box-shadow: none;
+        }
+
+        .login-note {
+          text-align: center;
+          margin-top: 1rem;
+        }
+
+        .login-note p {
+          color: #666;
+          font-size: 14px;
+          margin: 0;
+        }
+
+        /* User Welcome Section */
+        .user-welcome {
+          margin-top: 2rem;
+        }
+
         .step-header {
           text-align: center;
           margin-bottom: 2rem;
