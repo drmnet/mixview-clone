@@ -388,8 +388,14 @@ async def get_public_setup_status(db: Session = Depends(get_db)):
         configured_services = get_configured_services()
         available_services = get_service_configuration_info()
         
+        # Check if any real services are configured (exclude built-ins)
+        real_services_configured = len([s for s in configured_services if s not in ['apple_music', 'musicbrainz']]) > 0
+        
+        # Setup is required if either global setup incomplete OR no real services configured
+        setup_required = not global_setup_complete or not real_services_configured
+        
         return {
-            "setup_required": not global_setup_complete,
+            "setup_required": setup_required,
             "global_setup_complete": global_setup_complete,
             "available_services": available_services,
             "configured_services": configured_services
