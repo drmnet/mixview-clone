@@ -278,50 +278,6 @@ const closeServiceSetup = useCallback(() => {
     }
   }, [completedSteps]);
 
-  // Handle service connection updates
-  const handleServiceConnected = useCallback((serviceId) => {
-    setServiceStates(prev => {
-      const updated = {
-        ...prev,
-        [serviceId]: {
-          ...prev[serviceId],
-          connected: true,
-          error: null,
-          loading: false
-        }
-      };
-      updateSetupProgress(updated);
-      return updated;
-    });
-  
-    setActiveServiceSetup(null);
-    setError(null);
-  }, [updateSetupProgress]);
-
-  // Handle service connection errors
-  const handleServiceError = useCallback((serviceId, errorMessage) => {
-    setServiceStates(prev => ({
-      ...prev,
-      [serviceId]: {
-        ...prev[serviceId],
-        error: errorMessage,
-        loading: false
-      }
-    }));
-    setError(errorMessage);
-  }, []);
-
-  // Handle service loading state changes
-  const handleServiceLoadingChange = useCallback((serviceId, loading) => {
-    setServiceStates(prev => ({
-      ...prev,
-      [serviceId]: {
-        ...prev[serviceId],
-        loading: loading
-      }
-    }));
-  }, []);
-
   // Navigation functions
   const goToStep = (stepIndex) => {
     if (stepIndex >= 0 && stepIndex < SETUP_STEPS.length) {
