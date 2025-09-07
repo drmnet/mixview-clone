@@ -379,3 +379,21 @@ async def reset_setup(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to reset setup"
         )
+    
+    @router.get("/status/public")
+async def get_public_setup_status(db: Session = Depends(get_db)):
+    """Public setup status check - works without authentication"""
+    try:
+        global_setup_complete = check_global_setup_complete()
+        configured_services = get_configured_services()
+        available_services = get_service_configuration_info()
+        
+        return {
+            "setup_required": not global_setup_complete,
+            "global_setup_complete": global_setup_complete,
+            "available_services": available_services,
+            "configured_services": configured_services
+        }
+    except Exception as e:
+        logger.error(f"Public setup status check failed: {e}")
+        return {"setup_required": True, "error": str(e)}
