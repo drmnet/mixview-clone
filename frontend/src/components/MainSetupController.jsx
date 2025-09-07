@@ -59,7 +59,7 @@ const SERVICES_CONFIG = {
       description: 'Connect your Spotify account to access your music library, playlists, and listening history.',
       component: 'SpotifySetupEnhanced',
       features: ['Music Library', 'Playlists', 'Top Artists/Tracks', 'Recommendations']
-    }
+    }  
   ],
   // Optional services (enhance the experience)
   optional: [
@@ -744,8 +744,40 @@ function MainSetupController({ onSetupComplete, initialStep = 0 }) {
               loading={serviceStates.spotify?.loading || false}
             />
           )}
+          {activeServiceSetup === 'lastfm' && (
+            <LastFmSetupEnhanced
+              onConnected={handleLastFmConnected}
+              onError={handleLastFmError}
+              onLoadingChange={handleLastFmLoadingChange}
+              isConnected={serviceStates.lastfm?.connected || false}
+              error={serviceStates.lastfm?.error}
+              loading={serviceStates.lastfm?.loading || false}
+            />
+          )}
+          {activeServiceSetup === 'discogs' && (
+            <DiscogsSetupEnhanced
+              onConnected={handleDiscogsConnected}
+              onError={handleDiscogsError}
+              onLoadingChange={handleDiscogsLoadingChange}
+              isConnected={serviceStates.discogs?.connected || false}
+              error={serviceStates.discogs?.error}
+              loading={serviceStates.discogs?.loading || false}
+            />
+          )}
+          {activeServiceSetup === 'youtube' && (
+            <YoutubeSetupEnhanced
+              onConnected={handleYoutubeConnected}
+              onError={handleYoutubeError}
+              onLoadingChange={handleYoutubeLoadingChange}
+              isConnected={serviceStates.youtube?.connected || false}
+              error={serviceStates.youtube?.error}
+              loading={serviceStates.youtube?.loading || false}
+            />
+          )}
+        </Modal>
+      )}
 
-          <style jsx>{`
+      <style jsx>{`
         .main-setup-controller {
           max-width: 800px;
           margin: 0 auto;
@@ -1152,8 +1184,7 @@ function MainSetupController({ onSetupComplete, initialStep = 0 }) {
           }
         }
       `}</style>
-        </div>
-      );
+    </div>
+  );
 }
-
-      export default MainSetupController;
+export default MainSetupController;
