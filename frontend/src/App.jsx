@@ -23,7 +23,7 @@ const useFirstRun = () => {
         const localSetup = localStorage.getItem('mixview_app_initialized');
         
         // Also check backend setup status
-        const response = await fetch(`${API_BASE}/setup/status`);
+        const response = await fetch(`${API_BASE}/setup/status/public`);
         let backendSetup = null;
         
         if (response.ok) {
