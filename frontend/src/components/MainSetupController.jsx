@@ -43,7 +43,7 @@ const {
 // Setup wizard configuration
 const SETUP_STEPS = [
   'Welcome',
-  'Required Services', 
+  'Required Services',
   'Optional Services',
   'Configuration',
   'Complete'
@@ -96,7 +96,7 @@ function MainSetupController({ onSetupComplete, initialStep = 0 }) {
   const [completedSteps, setCompletedSteps] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
-  
+
   // Service connection states
   const [serviceStates, setServiceStates] = useState({});
   const [activeServiceSetup, setActiveServiceSetup] = useState(null);
@@ -113,68 +113,68 @@ function MainSetupController({ onSetupComplete, initialStep = 0 }) {
     userPreferences: {}
   });
 
-const handleServiceConnected = useCallback((serviceId) => {
-  setServiceStates(prev => {
-    const updated = {
+  const handleServiceConnected = useCallback((serviceId) => {
+    setServiceStates(prev => {
+      const updated = {
+        ...prev,
+        [serviceId]: {
+          ...prev[serviceId],
+          connected: true,
+          error: null,
+          loading: false
+        }
+      };
+      updateSetupProgress(updated);
+      return updated;
+    });
+
+    setActiveServiceSetup(null);
+    setError(null);
+  }, [updateSetupProgress]);
+
+  const handleServiceError = useCallback((serviceId, errorMessage) => {
+    setServiceStates(prev => ({
       ...prev,
       [serviceId]: {
         ...prev[serviceId],
-        connected: true,
-        error: null,
+        error: errorMessage,
         loading: false
       }
-    };
-    updateSetupProgress(updated);
-    return updated;
-  });
-  
-  setActiveServiceSetup(null);
-  setError(null);
-}, [updateSetupProgress]);
+    }));
+    setError(errorMessage);
+  }, []);
 
-const handleServiceError = useCallback((serviceId, errorMessage) => {
-  setServiceStates(prev => ({
-    ...prev,
-    [serviceId]: {
-      ...prev[serviceId],
-      error: errorMessage,
-      loading: false
-    }
-  }));
-  setError(errorMessage);
-}, []);
+  const handleServiceLoadingChange = useCallback((serviceId, loading) => {
+    setServiceStates(prev => ({
+      ...prev,
+      [serviceId]: {
+        ...prev[serviceId],
+        loading: loading
+      }
+    }));
+  }, []);
 
-const handleServiceLoadingChange = useCallback((serviceId, loading) => {
-  setServiceStates(prev => ({
-    ...prev,
-    [serviceId]: {
-      ...prev[serviceId],
-      loading: loading
-    }
-  }));
-}, []);
+  // Service-specific callbacks
+  const handleSpotifyConnected = useCallback(() => handleServiceConnected('spotify'), [handleServiceConnected]);
+  const handleSpotifyError = useCallback((error) => handleServiceError('spotify', error), [handleServiceError]);
+  const handleSpotifyLoadingChange = useCallback((loading) => handleServiceLoadingChange('spotify', loading), [handleServiceLoadingChange]);
 
-// Service-specific callbacks
-const handleSpotifyConnected = useCallback(() => handleServiceConnected('spotify'), [handleServiceConnected]);
-const handleSpotifyError = useCallback((error) => handleServiceError('spotify', error), [handleServiceError]);
-const handleSpotifyLoadingChange = useCallback((loading) => handleServiceLoadingChange('spotify', loading), [handleServiceLoadingChange]);
+  const handleLastFmConnected = useCallback(() => handleServiceConnected('lastfm'), [handleServiceConnected]);
+  const handleLastFmError = useCallback((error) => handleServiceError('lastfm', error), [handleServiceError]);
+  const handleLastFmLoadingChange = useCallback((loading) => handleServiceLoadingChange('lastfm', loading), [handleServiceLoadingChange]);
 
-const handleLastFmConnected = useCallback(() => handleServiceConnected('lastfm'), [handleServiceConnected]);
-const handleLastFmError = useCallback((error) => handleServiceError('lastfm', error), [handleServiceError]);
-const handleLastFmLoadingChange = useCallback((loading) => handleServiceLoadingChange('lastfm', loading), [handleServiceLoadingChange]);
+  const handleDiscogsConnected = useCallback(() => handleServiceConnected('discogs'), [handleServiceConnected]);
+  const handleDiscogsError = useCallback((error) => handleServiceError('discogs', error), [handleServiceError]);
+  const handleDiscogsLoadingChange = useCallback((loading) => handleServiceLoadingChange('discogs', loading), [handleServiceLoadingChange]);
 
-const handleDiscogsConnected = useCallback(() => handleServiceConnected('discogs'), [handleServiceConnected]);
-const handleDiscogsError = useCallback((error) => handleServiceError('discogs', error), [handleServiceError]);
-const handleDiscogsLoadingChange = useCallback((loading) => handleServiceLoadingChange('discogs', loading), [handleServiceLoadingChange]);
+  const handleYoutubeConnected = useCallback(() => handleServiceConnected('youtube'), [handleServiceConnected]);
+  const handleYoutubeError = useCallback((error) => handleServiceError('youtube', error), [handleServiceError]);
+  const handleYoutubeLoadingChange = useCallback((loading) => handleServiceLoadingChange('youtube', loading), [handleServiceLoadingChange]);
 
-const handleYoutubeConnected = useCallback(() => handleServiceConnected('youtube'), [handleServiceConnected]);
-const handleYoutubeError = useCallback((error) => handleServiceError('youtube', error), [handleServiceError]);
-const handleYoutubeLoadingChange = useCallback((loading) => handleServiceLoadingChange('youtube', loading), [handleServiceLoadingChange]);
-
-// Modal close handler
-const closeServiceSetup = useCallback(() => {
-  setActiveServiceSetup(null);
-}, []);
+  // Modal close handler
+  const closeServiceSetup = useCallback(() => {
+    setActiveServiceSetup(null);
+  }, []);
 
   const API_BASE = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8001';
   const token = localStorage.getItem('token');
@@ -211,7 +211,7 @@ const closeServiceSetup = useCallback(() => {
       if (response.ok) {
         const statuses = await response.json();
         const newServiceStates = {};
-        
+
         // Initialize service states
         [...SERVICES_CONFIG.required, ...SERVICES_CONFIG.optional].forEach(service => {
           newServiceStates[service.id] = {
@@ -259,7 +259,7 @@ const closeServiceSetup = useCallback(() => {
     const requiredConnected = SERVICES_CONFIG.required.filter(
       service => states[service.id]?.connected
     ).length;
-    
+
     const optionalConnected = SERVICES_CONFIG.optional.filter(
       service => states[service.id]?.connected
     ).length;
@@ -450,9 +450,9 @@ const closeServiceSetup = useCallback(() => {
 
       {setupProgress.requiredServicesConnected === 0 && (
         <InstructionPanel title="Why do I need to connect a service?" type="info">
-          <p>MixView creates music connections by analyzing your listening data. To provide personalized 
-          recommendations and discover music relationships, we need access to your music library from 
-          at least one service.</p>
+          <p>MixView creates music connections by analyzing your listening data. To provide personalized
+            recommendations and discover music relationships, we need access to your music library from
+            at least one service.</p>
         </InstructionPanel>
       )}
 
@@ -696,7 +696,7 @@ const closeServiceSetup = useCallback(() => {
         >
           Previous
         </button>
-        
+
         <div className="nav-spacer" />
 
         {currentStep === SETUP_STEPS.length - 1 ? (
@@ -745,7 +745,7 @@ const closeServiceSetup = useCallback(() => {
             />
           )}
 
-      <style jsx>{`
+          <style jsx>{`
         .main-setup-controller {
           max-width: 800px;
           margin: 0 auto;
@@ -1152,8 +1152,8 @@ const closeServiceSetup = useCallback(() => {
           }
         }
       `}</style>
-    </div>
-  );
+        </div>
+      );
 }
 
-export default MainSetupController;
+      export default MainSetupController;
