@@ -32,7 +32,7 @@ const useFirstRun = () => {
           console.warn('Could not reach backend setup status endpoint');
         }
         
-        const needsSetup = !localSetup || backendSetup?.requires_setup === true;
+        const needsSetup = !localSetup || backendSetup?.setup_required === true;
         
         if (needsSetup) {
           setIsFirstRun(true);
