@@ -5,7 +5,7 @@ import React, { useState, useEffect } from 'react';
 import GraphView from './components/GraphView';
 import FiltersPanel from './components/FiltersPanel';
 import ContextPanel from './components/ContextPanel';
-import SetupWizard from './components/SetupWizard';
+import MainSetupController from './components/MainSetupController';
 import ServiceManager from './components/ServiceManager';
 import LoginForm from './components/LoginForm';
 import SearchBar from './components/SearchBar';
@@ -228,7 +228,7 @@ function App() {
   if (isFirstRun && !user) {
     return (
       <div className="App">
-        <SetupWizard onComplete={completeSetup} />
+        <MainSetupController onSetupComplete={completeSetup} />
       </div>
     );
   }
@@ -244,7 +244,7 @@ function App() {
       
       {!user && <LoginForm onLogin={handleLogin} />}
       
-      {user && showSetup && <SetupWizard onComplete={() => setShowSetup(false)} />}
+      {user && showSetup && <MainSetupController onSetupComplete={() => setShowSetup(false)} />}
       
       {user && showServiceManager && (
         <ServiceManager

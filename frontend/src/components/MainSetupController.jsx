@@ -21,8 +21,11 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { SetupUIComponents } from '../shared/SetupUIComponents';
-import SpotifySetupEnhanced from './services/SpotifySetupEnhanced';
+import { SetupUIComponents } from './SetupUIComponents';
+import SpotifySetupEnhanced from './SpotifySetupEnhanced';
+import LastFmSetupEnhanced from './LastFmSetupEnhanced';
+import DiscogsSetupEnhanced from './DiscogsSetupEnhanced';
+import YoutubeSetupEnhanced from './YoutubeSetupEnhanced';
 // Import other service components as they're created
 // import LastFmSetupEnhanced from './services/LastFmSetupEnhanced';
 // import DiscogsSetupEnhanced from './services/DiscogsSetupEnhanced';

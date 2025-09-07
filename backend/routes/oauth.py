@@ -18,6 +18,8 @@ from user_services import (
     UserServiceManager, SpotifyOAuthManager, 
     UserSpotifyService, UserLastFMService, UserDiscogsService
 )
+from db_package.models import ServerConfiguration
+from routes.setup import get_server_credential
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -85,11 +87,15 @@ async def spotify_auth_start(
 ):
     """Start Spotify OAuth flow"""
     try:
-        client_id = os.getenv('SPOTIFY_CLIENT_ID')
+        client_id = get_server_credential('spotify', 'client_id', db)
         if not client_id:
+            client_id = os.getenv('SPOTIFY_CLIENT_ID')
+        
+        if not client_id:
+            logger.error("Spotify OAuth not configured - no client_id found in database or environment")
             raise HTTPException(
-                status_code=503, 
-                detail="Spotify OAuth not configured on server"
+                status_code=503,
+                detail="Spotify OAuth not configured on server. Please configure through the setup wizard."
             )
         
         redirect_uri = f"{os.getenv('BACKEND_URL', 'http://localhost:8001')}/oauth/spotify/callback"
@@ -119,13 +125,19 @@ async def spotify_callback(
         )
     
     try:
-        client_id = os.getenv('SPOTIFY_CLIENT_ID')
-        client_secret = os.getenv('SPOTIFY_CLIENT_SECRET')
+        client_id = get_server_credential('spotify', 'client_id', db)
+        if not client_id:
+            client_id = os.getenv('SPOTIFY_CLIENT_ID')
+            
+        client_secret = get_server_credential('spotify', 'client_secret', db)
+        if not client_secret:
+            client_secret = os.getenv('SPOTIFY_CLIENT_SECRET')
         
         if not client_id or not client_secret:
+            logger.error("Spotify OAuth credentials missing from both database and environment")
             raise HTTPException(
                 status_code=503,
-                detail="Spotify OAuth credentials not configured"
+                detail="Spotify OAuth not properly configured on server"
             )
         
         user_id = SpotifyOAuthManager.handle_oauth_callback(

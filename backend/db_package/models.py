@@ -216,3 +216,21 @@ class AppConfig(Base):
     
     def __repr__(self):
         return f"<AppConfig(key='{self.key}', value='{self.value[:50]}...')>"
+    
+class ServerConfiguration(Base):
+    __tablename__ = "server_configuration"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    service_name = Column(String, unique=True, nullable=False, index=True)  # 'spotify', 'lastfm', etc.
+    config_key = Column(String, nullable=False)  # 'client_id', 'client_secret', etc.
+    config_value = Column(Text, nullable=False)  # Encrypted credential value
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    
+    # Create composite unique constraint for service_name + config_key
+    __table_args__ = (
+        UniqueConstraint('service_name', 'config_key', name='_service_config_uc'),
+    )
+    
+    def __repr__(self):
+        return f"<ServerConfiguration(service_name='{self.service_name}', config_key='{self.config_key}')>"

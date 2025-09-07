@@ -104,60 +104,69 @@ function SetupWizard({ onComplete }) {
       };
 
   const handleSpotifyConnect = async () => {
-    setLoading(true);
-    setErrors(prev => ({ ...prev, spotify: '' }));
-    
-    try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${API_BASE}/oauth/spotify/auth`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        
-        // Open OAuth popup
-        const popup = window.open(
-          data.auth_url, 
-          'spotify-oauth', 
-          'width=600,height=700,scrollbars=yes,resizable=yes'
-        );
-
-        // Poll for popup closure
-        const pollTimer = setInterval(() => {
-          try {
-            if (popup.closed) {
-              clearInterval(pollTimer);
-              setLoading(false);
-              // Check status after popup closes
-              setTimeout(checkServiceStatus, 1000);
-            }
-          } catch (e) {
-            // Popup might be cross-origin, ignore errors
-          }
-        }, 1000);
-
-        // Timeout after 5 minutes
-        setTimeout(() => {
-          clearInterval(pollTimer);
-          if (!popup.closed) {
-            popup.close();
-          }
-          setLoading(false);
-        }, 300000);
-
-      } else {
-        throw new Error('Failed to initiate Spotify OAuth');
+  setLoading(true);
+  setErrors(prev => ({ ...prev, spotify: '' }));
+  
+  try {
+    const token = localStorage.getItem('token');
+    const response = await fetch(`${API_BASE}/oauth/spotify/auth`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
       }
-    } catch (error) {
-      console.error('Spotify OAuth error:', error);
-      setErrors(prev => ({ ...prev, spotify: 'Failed to start Spotify connection. Please try again.' }));
-      setLoading(false);
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      
+      // Open OAuth popup
+      const popup = window.open(
+        data.auth_url, 
+        'spotify-oauth', 
+        'width=600,height=700,scrollbars=yes,resizable=yes'
+      );
+
+      // Poll for popup closure
+      const pollTimer = setInterval(() => {
+        try {
+          if (popup.closed) {
+            clearInterval(pollTimer);
+            setLoading(false);
+            // Check status after popup closes
+            setTimeout(checkServiceStatus, 1000);
+          }
+        } catch (e) {
+          // Popup might be cross-origin, ignore errors
+        }
+      }, 1000);
+
+      // Timeout after 5 minutes
+      setTimeout(() => {
+        clearInterval(pollTimer);
+        if (!popup.closed) {
+          popup.close();
+        }
+        setLoading(false);
+      }, 300000);
+
+    } else if (response.status === 500) {
+      // Server configuration issue
+      throw new Error('Spotify OAuth is not configured on this server. Please contact your administrator to set up Spotify integration.');
+    } else if (response.status === 503) {
+      // Service unavailable
+      throw new Error('Spotify OAuth not configured on server');
+    } else {
+      throw new Error('Failed to initiate Spotify OAuth');
     }
-  };
+  } catch (error) {
+    console.error('Spotify OAuth error:', error);
+    setErrors(prev => ({ 
+      ...prev, 
+      spotify: error.message || 'Failed to start Spotify connection. Please try again.' 
+    }));
+    setLoading(false);
+  }
+};
 
   const handleCredentialSubmit = async (serviceName) => {
     setLoading(true);
@@ -223,7 +232,7 @@ function SetupWizard({ onComplete }) {
       <div className="account-setup">
         <h2>Create Your MixView Account</h2>
         <p>First, let's create your personal MixView account. This will allow you to save your preferences and connect to music services.</p>
-        <LoginForm onLogin={handleLogin} />
+        <LoginForm onLogin={handleLogin} defaultMode="register" />
       </div>
     </div>
   );

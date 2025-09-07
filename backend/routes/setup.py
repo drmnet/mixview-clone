@@ -10,7 +10,8 @@ from pydantic import BaseModel
 
 # Import your existing database and auth systems
 from db_package.database import get_db
-from db_package.models import User, SetupProgress
+from db_package.models import User, SetupProgress, ServerConfiguration
+from encryption import encrypt_credential, decrypt_credential
 from routes.auth import get_current_user
 
 # Import your existing service management (if available)
@@ -380,6 +381,97 @@ async def reset_setup(
             detail="Failed to reset setup"
         )
     
+@router.post("/server-config")
+async def save_server_config(
+    config_data: dict,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Save server configuration (OAuth credentials) through enhanced setup UI"""
+    try:
+        service_name = config_data.get('service_name')
+        credentials = config_data.get('credentials', {})
+        
+        if not service_name or not credentials:
+            raise HTTPException(status_code=400, detail="Service name and credentials required")
+        
+        logger.info(f"Saving server config for {service_name}")
+        
+        # Save each credential securely
+        for key, value in credentials.items():
+            if not value or not value.strip():
+                continue
+                
+            # Check if configuration already exists
+            existing_config = db.query(ServerConfiguration).filter(
+                ServerConfiguration.service_name == service_name,
+                ServerConfiguration.config_key == key
+            ).first()
+            
+            if existing_config:
+                # Update existing
+                existing_config.config_value = encrypt_credential(value.strip())
+                existing_config.updated_at = func.now()
+                logger.info(f"Updated {service_name} {key}")
+            else:
+                # Create new
+                new_config = ServerConfiguration(
+                    service_name=service_name,
+                    config_key=key,
+                    config_value=encrypt_credential(value.strip())
+                )
+                db.add(new_config)
+                logger.info(f"Created {service_name} {key}")
+        
+        db.commit()
+        
+        return {
+            "success": True,
+            "message": f"{service_name.title()} server configuration saved successfully"
+        }
+        
+    except Exception as e:
+        logger.error(f"Error saving server config: {e}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Failed to save server configuration")
+
+@router.get("/server-config/{service_name}")
+async def get_server_config_status(
+    service_name: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Check if server configuration exists for a service - used by enhanced setup components"""
+    try:
+        configs = db.query(ServerConfiguration).filter(
+            ServerConfiguration.service_name == service_name
+        ).all()
+        
+        configured_keys = [config.config_key for config in configs]
+        
+        # Define required keys for each service
+        required_keys = {
+            'spotify': ['client_id', 'client_secret'],
+            'lastfm': [],  # Last.fm doesn't need server config
+            'discogs': [],  # Discogs doesn't need server config
+            'youtube': []  # YouTube doesn't need server config
+        }
+        
+        service_required = required_keys.get(service_name, [])
+        is_configured = all(key in configured_keys for key in service_required)
+        
+        return {
+            "service_name": service_name,
+            "is_configured": is_configured,
+            "configured_keys": configured_keys,
+            "required_keys": service_required,
+            "requires_server_config": len(service_required) > 0
+        }
+        
+    except Exception as e:
+        logger.error(f"Error checking server config: {e}")
+        raise HTTPException(status_code=500, detail="Failed to check server configuration")
+
 @router.get("/status/public")
 async def get_public_setup_status(db: Session = Depends(get_db)):
     """Public setup status check - works without authentication"""
@@ -403,3 +495,19 @@ async def get_public_setup_status(db: Session = Depends(get_db)):
     except Exception as e:
         logger.error(f"Public setup status check failed: {e}")
         return {"setup_required": True, "error": str(e)}
+    
+def get_server_credential(service_name: str, credential_key: str, db: Session) -> str:
+    """Get decrypted server credential from database for OAuth routes"""
+    try:
+        config = db.query(ServerConfiguration).filter(
+            ServerConfiguration.service_name == service_name,
+            ServerConfiguration.config_key == credential_key
+        ).first()
+        
+        if config:
+            return decrypt_credential(config.config_value)
+        return None
+        
+    except Exception as e:
+        logger.error(f"Error retrieving server credential: {e}")
+        return None
