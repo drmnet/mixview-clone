@@ -1,4 +1,5 @@
 ﻿import React, { useState, useEffect } from 'react';
+import LoginForm from './LoginForm';
 
 function SetupWizard({ onComplete }) {
   const [currentStep, setCurrentStep] = useState(0);
@@ -10,36 +11,43 @@ function SetupWizard({ onComplete }) {
   });
   const [errors, setErrors] = useState({});
   const [successMessages, setSuccessMessages] = useState({});
+  const [user, setUser] = useState(null);
+  const [token, setToken] = useState(localStorage.getItem('token'));
 
   const API_BASE = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8001';
 
   const steps = [
-    {
-      title: 'Welcome',
-      description: 'Set up your music services',
-      component: 'welcome'
-    },
-    {
-      title: 'Spotify',
-      description: 'Connect your Spotify account',
-      component: 'spotify'
-    },
-    {
-      title: 'Last.fm',
-      description: 'Enter your Last.fm API key',
-      component: 'lastfm'
-    },
-    {
-      title: 'Discogs',
-      description: 'Enter your Discogs token',
-      component: 'discogs'
-    },
-    {
-      title: 'Complete',
-      description: 'Setup complete!',
-      component: 'complete'
-    }
-  ];
+  {
+    title: 'Account',
+    description: 'Create your MixView account',
+    component: 'account'
+  },
+  {
+    title: 'Welcome',
+    description: 'Set up your music services',
+    component: 'welcome'
+  },
+  {
+    title: 'Spotify',
+    description: 'Connect your Spotify account',
+    component: 'spotify'
+  },
+  {
+    title: 'Last.fm',
+    description: 'Enter your Last.fm API key',
+    component: 'lastfm'
+  },
+  {
+    title: 'Discogs',
+    description: 'Enter your Discogs token',
+    component: 'discogs'
+  },
+  {
+    title: 'Complete',
+    description: 'Setup complete!',
+    component: 'complete'
+  }
+];
 
   useEffect(() => {
     checkServiceStatus();
@@ -84,6 +92,16 @@ function SetupWizard({ onComplete }) {
       console.error('Failed to check service status:', error);
     }
   };
+
+      const handleLogin = (userData, userToken) => {
+        setUser(userData);
+        setToken(userToken);
+        localStorage.setItem('token', userToken);
+        // Move to next step after successful login
+        setCurrentStep(1);
+        // Check service status now that we have a token
+        checkServiceStatus();
+      };
 
   const handleSpotifyConnect = async () => {
     setLoading(true);
@@ -199,6 +217,16 @@ function SetupWizard({ onComplete }) {
   const getConfiguredServicesCount = () => {
     return Object.values(serviceStatus).filter(Boolean).length;
   };
+
+  const AccountStep = () => (
+    <div className="step-content">
+      <div className="account-setup">
+        <h2>Create Your MixView Account</h2>
+        <p>First, let's create your personal MixView account. This will allow you to save your preferences and connect to music services.</p>
+        <LoginForm onLogin={handleLogin} />
+      </div>
+    </div>
+  );
 
   const WelcomeStep = () => (
     <div className="step-content">
@@ -503,6 +531,8 @@ function SetupWizard({ onComplete }) {
 
   const renderStep = () => {
     switch (steps[currentStep].component) {
+      case 'account':
+        return <AccountStep />;
       case 'welcome':
         return <WelcomeStep />;
       case 'spotify':
@@ -514,7 +544,7 @@ function SetupWizard({ onComplete }) {
       case 'complete':
         return <CompleteStep />;
       default:
-        return <WelcomeStep />;
+        return <AccountStep />;
     }
   };
 
@@ -757,6 +787,25 @@ function SetupWizard({ onComplete }) {
         .welcome-note p {
           margin: 0;
           color: #555;
+        }
+
+        .account-setup {
+          text-align: center;
+          max-width: 400px;
+          margin: 0 auto;
+        }
+
+        .account-setup h2 {
+          color: #333;
+          margin-bottom: 1rem;
+          font-size: 1.5rem;
+        }
+
+        .account-setup p {
+          color: #666;
+          margin-bottom: 2rem;
+          line-height: 1.5;
+          font-size: 1rem;
         }
 
         .service-setup-header {
