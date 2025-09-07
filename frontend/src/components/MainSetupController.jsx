@@ -113,6 +113,69 @@ function MainSetupController({ onSetupComplete, initialStep = 0 }) {
     userPreferences: {}
   });
 
+const handleServiceConnected = useCallback((serviceId) => {
+  setServiceStates(prev => {
+    const updated = {
+      ...prev,
+      [serviceId]: {
+        ...prev[serviceId],
+        connected: true,
+        error: null,
+        loading: false
+      }
+    };
+    updateSetupProgress(updated);
+    return updated;
+  });
+  
+  setActiveServiceSetup(null);
+  setError(null);
+}, [updateSetupProgress]);
+
+const handleServiceError = useCallback((serviceId, errorMessage) => {
+  setServiceStates(prev => ({
+    ...prev,
+    [serviceId]: {
+      ...prev[serviceId],
+      error: errorMessage,
+      loading: false
+    }
+  }));
+  setError(errorMessage);
+}, []);
+
+const handleServiceLoadingChange = useCallback((serviceId, loading) => {
+  setServiceStates(prev => ({
+    ...prev,
+    [serviceId]: {
+      ...prev[serviceId],
+      loading: loading
+    }
+  }));
+}, []);
+
+// Service-specific callbacks
+const handleSpotifyConnected = useCallback(() => handleServiceConnected('spotify'), [handleServiceConnected]);
+const handleSpotifyError = useCallback((error) => handleServiceError('spotify', error), [handleServiceError]);
+const handleSpotifyLoadingChange = useCallback((loading) => handleServiceLoadingChange('spotify', loading), [handleServiceLoadingChange]);
+
+const handleLastFmConnected = useCallback(() => handleServiceConnected('lastfm'), [handleServiceConnected]);
+const handleLastFmError = useCallback((error) => handleServiceError('lastfm', error), [handleServiceError]);
+const handleLastFmLoadingChange = useCallback((loading) => handleServiceLoadingChange('lastfm', loading), [handleServiceLoadingChange]);
+
+const handleDiscogsConnected = useCallback(() => handleServiceConnected('discogs'), [handleServiceConnected]);
+const handleDiscogsError = useCallback((error) => handleServiceError('discogs', error), [handleServiceError]);
+const handleDiscogsLoadingChange = useCallback((loading) => handleServiceLoadingChange('discogs', loading), [handleServiceLoadingChange]);
+
+const handleYoutubeConnected = useCallback(() => handleServiceConnected('youtube'), [handleServiceConnected]);
+const handleYoutubeError = useCallback((error) => handleServiceError('youtube', error), [handleServiceError]);
+const handleYoutubeLoadingChange = useCallback((loading) => handleServiceLoadingChange('youtube', loading), [handleServiceLoadingChange]);
+
+// Modal close handler
+const closeServiceSetup = useCallback(() => {
+  setActiveServiceSetup(null);
+}, []);
+
   const API_BASE = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8001';
   const token = localStorage.getItem('token');
 
@@ -710,23 +773,20 @@ function MainSetupController({ onSetupComplete, initialStep = 0 }) {
       {activeServiceSetup && (
         <Modal
           isOpen={!!activeServiceSetup}
-          onClose={() => setActiveServiceSetup(null)}
+          onClose={closeServiceSetup}
           title={`Connect ${SERVICES_CONFIG.required.concat(SERVICES_CONFIG.optional)
             .find(s => s.id === activeServiceSetup)?.name}`}
           size="large"
         >
-          {activeServiceSetup === 'spotify' && (
-            <SpotifySetupEnhanced
-              onConnected={() => handleServiceConnected('spotify')}
-              onError={(error) => handleServiceError('spotify', error)}
-              onLoadingChange={(loading) => handleServiceLoadingChange('spotify', loading)}
-              isConnected={serviceStates.spotify?.connected || false}
-              error={serviceStates.spotify?.error}
-              loading={serviceStates.spotify?.loading || false}
-            />
-          )}
-          {/* Add other service components as they're created */}
-        </Modal>
+      {activeServiceSetup === 'spotify' && (
+        <SpotifySetupEnhanced
+          onConnected={handleSpotifyConnected}
+          onError={handleSpotifyError}
+          onLoadingChange={handleSpotifyLoadingChange}
+          isConnected={serviceStates.spotify?.connected || false}
+          error={serviceStates.spotify?.error}
+          loading={serviceStates.spotify?.loading || false}
+        />
       )}
 
       <style jsx>{`
