@@ -380,7 +380,7 @@ async def reset_setup(
             detail="Failed to reset setup"
         )
     
-    @router.get("/status/public")
+@router.get("/status/public")
 async def get_public_setup_status(db: Session = Depends(get_db)):
     """Public setup status check - works without authentication"""
     try:
