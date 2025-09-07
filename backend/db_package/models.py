@@ -96,18 +96,6 @@ class OAuthState(Base):
     
     user = relationship("User", back_populates="oauth_states")
 
-# Setup completion tracking
-class SetupProgress(Base):
-    __tablename__ = "setup_progress"
-    id = Column(Integer, primary_key=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, unique=True)
-    is_completed = Column(Boolean, default=False)
-    completed_at = Column(DateTime(timezone=True), nullable=True)
-    steps_completed = Column(JSON, default=list)  # Track which steps were completed
-    services_configured = Column(JSON, default=dict)  # Track which services were set up
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-
 # Artist table
 class Artist(Base):
     __tablename__ = "artists"
