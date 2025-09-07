@@ -209,28 +209,16 @@ $COMPOSE_CMD down --volumes 2>/dev/null || true
 echo "✅ Existing containers stopped."
 echo ""
 
-# Add a 5-second delay to prevent a race condition
-echo "Waiting 5 seconds for ports to be fully released..."
-sleep 5
-echo "✅ Ports should now be available."
-echo ""
-
-# Step 6: Clean up old images (optional but recommended)
+# Step 6: Clean up old images (automatic)
 # Removing old images frees up disk space and prevents potential conflicts.
-read -p "Remove old Docker images to ensure a clean build? (y/N): " -n 1 -r clean_images
-echo
-if [[ "$clean_images" =~ ^[Yy]$ ]]; then
-    echo "Removing old images and volumes..."
-    # Remove unused containers, networks, images, and build cache
-    docker system prune -f 2>/dev/null || true
-    # Remove unused images
-    docker image prune -a -f 2>/dev/null || true
-    # Remove unused volumes
-    docker volume prune -f 2>/dev/null || true
-    echo "✅ Old images and volumes removed."
-else
-    echo "Skipping image cleanup."
-fi
+echo "Removing old images and volumes for clean build..."
+# Remove unused containers, networks, images, and build cache
+docker system prune -f 2>/dev/null || true
+# Remove unused images
+docker image prune -a -f 2>/dev/null || true
+# Remove unused volumes
+docker volume prune -f 2>/dev/null || true
+echo "✅ Old images and volumes removed."
 echo ""
 
 # Step 7: Build Docker images with dependency validation
