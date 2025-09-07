@@ -44,6 +44,7 @@ class User(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     last_login = Column(DateTime(timezone=True), nullable=True)
     is_active = Column(Boolean, default=True)
+    setup_progress = relationship("SetupProgress", back_populates="user", uselist=False)
     setup_completed = Column(Boolean, default=False)
     setup_completed_at = Column(DateTime(timezone=True), nullable=True)
     
@@ -189,3 +190,41 @@ class ServiceConfig(Base):
     
     def __repr__(self):
         return f"<ServiceConfig(service_name='{self.service_name}')>"
+    
+    # NEW: Setup progress tracking for users
+class SetupProgress(Base):
+    __tablename__ = "setup_progress"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), unique=True, nullable=False)
+    
+    # Setup state
+    setup_completed = Column(Boolean, default=False)
+    current_step = Column(String, default="welcome")  # welcome, services, test, complete
+    
+    # Service configuration tracking
+    configured_services = Column(JSON, default=list)  # List of configured service names
+    
+    # Timestamps
+    setup_started_at = Column(DateTime(timezone=True), server_default=func.now())
+    setup_completed_at = Column(DateTime(timezone=True))
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    
+    # Relationship to your existing User model
+    user = relationship("User", back_populates="setup_progress")
+    
+    def __repr__(self):
+        return f"<SetupProgress(user_id={self.user_id}, completed={self.setup_completed})>"
+
+# Application configuration storage (add if you don't already have this)
+class AppConfig(Base):
+    __tablename__ = "app_config"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    key = Column(String, unique=True, nullable=False)
+    value = Column(Text)
+    description = Column(Text)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    
+    def __repr__(self):
+        return f"<AppConfig(key='{self.key}', value='{self.value[:50]}...')>"

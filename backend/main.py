@@ -4,6 +4,7 @@
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from routes.setup import router as setup_router
 import logging
 import os
 import time
@@ -140,6 +141,7 @@ try:
     app.include_router(search.router, prefix="/search", tags=["search"])
     app.include_router(oauth.router, prefix="/oauth", tags=["oauth"])
     app.include_router(setup.router, prefix="/setup", tags=["setup"])
+    app.include_router(setup_router)
     logger.info("All routers loaded successfully")
 except Exception as e:
     logger.error(f"Failed to load routers: {e}")
@@ -191,3 +193,38 @@ async def root():
 async def options_handler(full_path: str):
     """Handle CORS preflight requests for all paths"""
     return {"message": "CORS preflight successful"}
+
+@app.get("/setup/status")
+async def setup_status_public():
+    """Public setup status check - works without authentication"""
+    try:
+        # Check if global setup is complete
+        global_setup_complete = bool(
+            os.getenv('JWT_SECRET_KEY') and 
+            os.getenv('CREDENTIAL_ENCRYPTION_KEY') and 
+            os.getenv('DATABASE_URL')
+        )
+        
+        # Check configured services
+        configured_services = []
+        if os.getenv('SPOTIFY_CLIENT_ID') and os.getenv('SPOTIFY_CLIENT_SECRET'):
+            configured_services.append('spotify')
+        configured_services.extend(['apple_music', 'musicbrainz'])  # Built-ins
+        
+        return {
+            "setup_required": not global_setup_complete,
+            "global_setup_complete": global_setup_complete,
+            "user_setup_complete": True,  # Will be checked per-user when authenticated
+            "available_services": {
+                "spotify": {"configured": "spotify" in configured_services},
+                "lastfm": {"configured": False},
+                "discogs": {"configured": False},
+                "youtube": {"configured": False},
+                "apple_music": {"configured": True},
+                "musicbrainz": {"configured": True}
+            },
+            "configured_services": configured_services
+        }
+    except Exception as e:
+        logger.error(f"Setup status check failed: {e}")
+        return {"setup_required": True, "error": str(e)}

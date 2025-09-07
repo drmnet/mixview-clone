@@ -1,272 +1,357 @@
-# Location: mixview/backend/routes/setup.py
-# Description: Setup wizard integration routes
+# FILE: mixview/backend/routes/setup.py
+# Setup wizard routes that integrate with your existing service management system
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
-from typing import Dict, List, Optional
-from datetime import datetime
-import logging
-
-from db_package.database import get_db
-from routes.auth import get_current_user
-from db_package.models import User, SetupProgress, UserServiceCredential
-from user_services import UserServiceManager
+from typing import Dict, Any, List, Optional
 import os
+import logging
+from pydantic import BaseModel
+
+# Import your existing database and auth systems
+from ..db_package.database import get_db
+from ..db_package.models import User, SetupProgress
+from .auth import get_current_user
+
+# Import your existing service management (if available)
+try:
+    from ..user_services import UserServiceManager
+    HAS_USER_SERVICES = True
+except ImportError:
+    HAS_USER_SERVICES = False
+    logging.warning("UserServiceManager not available - setup wizard will have limited functionality")
 
 logger = logging.getLogger(__name__)
-router = APIRouter()
+router = APIRouter(prefix="/setup", tags=["setup"])
 
-# Request/Response models
-class SetupCompleteRequest(BaseModel):
-    steps_completed: List[str] = []
-    services_configured: Dict[str, bool] = {}
-
+# Pydantic models
 class SetupStatusResponse(BaseModel):
-    requires_setup: bool
-    user_setup_completed: bool
-    global_setup_completed: bool
-    services_configured: Dict[str, bool]
-    reason: str
+    setup_required: bool
+    global_setup_complete: bool
+    user_setup_complete: bool
+    available_services: Dict[str, Any]
+    configured_services: List[str]
 
-class ServiceConfigurationStatus(BaseModel):
-    spotify_available: bool
-    lastfm_configurable: bool
-    discogs_configurable: bool
-    youtube_configurable: bool
-    total_available_services: int
+class ServiceConfigRequest(BaseModel):
+    service: str
+    config: Dict[str, Any]
 
-@router.get("/status")
-async def get_setup_status(
-    current_user: Optional[User] = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """
-    Check if the application or user requires initial setup.
-    Can be called without authentication for global setup check.
-    """
+class SetupCompleteRequest(BaseModel):
+    services_configured: List[str]
+
+def get_service_configuration_info():
+    """Get detailed service configuration information"""
+    return {
+        'spotify': {
+            'name': 'Spotify',
+            'description': 'Access your Spotify library and get personalized recommendations',
+            'type': 'oauth',
+            'requires_server_config': True,
+            'configured': bool(os.getenv('SPOTIFY_CLIENT_ID') and os.getenv('SPOTIFY_CLIENT_SECRET')),
+            'setup_steps': [
+                {
+                    'title': 'Create Spotify App',
+                    'description': 'Register your application with Spotify',
+                    'action_url': 'https://developer.spotify.com/dashboard/applications',
+                    'instructions': [
+                        'Go to Spotify Developer Dashboard',
+                        'Click "Create App"',
+                        'Fill in app details:',
+                        '  - App name: MixView',
+                        '  - App description: Music discovery application',
+                        '  - Redirect URI: http://localhost:8001/oauth/spotify/callback',
+                        'Accept terms and create app',
+                        'Copy Client ID and Client Secret'
+                    ]
+                }
+            ],
+            'redirect_uri': f"{os.getenv('BACKEND_URL', 'http://localhost:8001')}/oauth/spotify/callback"
+        },
+        'lastfm': {
+            'name': 'Last.fm',
+            'description': 'Access rich music metadata and listening history',
+            'type': 'api_key',
+            'requires_server_config': False,
+            'configured': False,  # Will be checked per-user
+            'setup_steps': [
+                {
+                    'title': 'Create Last.fm API Account',
+                    'description': 'Get your personal API key from Last.fm',
+                    'action_url': 'https://www.last.fm/api/account/create',
+                    'instructions': [
+                        'Go to the Last.fm API account creation page',
+                        'Fill out the form with your details',
+                        'Copy your API key from the confirmation page'
+                    ]
+                }
+            ]
+        },
+        'discogs': {
+            'name': 'Discogs',
+            'description': 'Access comprehensive music release database',
+            'type': 'personal_token',
+            'requires_server_config': False,
+            'configured': False,  # Will be checked per-user
+            'setup_steps': [
+                {
+                    'title': 'Generate Personal Access Token',
+                    'description': 'Create a token for API access',
+                    'action_url': 'https://www.discogs.com/settings/developers',
+                    'instructions': [
+                        'Go to your Discogs Developer Settings',
+                        'Generate a new personal access token',
+                        'Copy the generated token'
+                    ]
+                }
+            ]
+        },
+        'apple_music': {
+            'name': 'Apple Music',
+            'description': 'Apple\'s music streaming service (search links only)',
+            'type': 'built_in',
+            'requires_server_config': False,
+            'configured': True,
+            'setup_steps': [
+                {
+                    'title': 'Ready to Use',
+                    'description': 'Apple Music integration is built-in',
+                    'instructions': ['No setup required!']
+                }
+            ]
+        },
+        'musicbrainz': {
+            'name': 'MusicBrainz',
+            'description': 'Open music encyclopedia',
+            'type': 'built_in',
+            'requires_server_config': False,
+            'configured': True,
+            'setup_steps': [
+                {
+                    'title': 'Ready to Use',
+                    'description': 'MusicBrainz integration is built-in',
+                    'instructions': ['No setup required!']
+                }
+            ]
+        }
+    }
+
+def check_global_setup_complete():
+    """Check if global server setup is complete"""
+    required_vars = ['JWT_SECRET_KEY', 'CREDENTIAL_ENCRYPTION_KEY', 'DATABASE_URL']
+    return all(os.getenv(var) for var in required_vars)
+
+def get_configured_services():
+    """Get list of globally configured services"""
+    configured = ['apple_music', 'musicbrainz']  # Built-ins always available
+    
+    if os.getenv('SPOTIFY_CLIENT_ID') and os.getenv('SPOTIFY_CLIENT_SECRET'):
+        configured.append('spotify')
+    
+    return configured
+
+def check_user_service_status(user_id: int, db: Session) -> Dict[str, bool]:
+    """Check which services the user has configured"""
+    if not HAS_USER_SERVICES:
+        return {}
+    
     try:
-        # Check global service configuration
-        spotify_configured = bool(
-            os.getenv('SPOTIFY_CLIENT_ID') and 
-            os.getenv('SPOTIFY_CLIENT_SECRET')
-        )
-        
-        # If no user is logged in, check global setup only
-        if not current_user:
-            return {
-                "requires_setup": not spotify_configured,
-                "user_setup_completed": False,
-                "global_setup_completed": spotify_configured,
-                "services_configured": {
-                    "spotify": spotify_configured,
-                    "lastfm": False,
-                    "discogs": False,
-                    "youtube": False,
-                    "apple_music": True,  # Always available
-                    "musicbrainz": True   # Always available
-                },
-                "reason": "No user logged in - showing global setup status"
-            }
-        
-        # Get user-specific setup progress
-        setup_progress = db.query(SetupProgress).filter(
-            SetupProgress.user_id == current_user.id
-        ).first()
-        
-        # Get user's service configurations
         service_manager = UserServiceManager(db)
-        user_services = service_manager.get_user_service_status(current_user.id)
+        return service_manager.get_user_service_status(user_id)
+    except Exception as e:
+        logger.error(f"Error checking user service status: {e}")
+        return {}
+
+@router.get("/status", response_model=SetupStatusResponse)
+async def get_setup_status(
+    db: Session = Depends(get_db),
+    current_user: Optional[User] = Depends(get_current_user)
+):
+    """Check setup status - works both authenticated and unauthenticated"""
+    try:
+        global_setup_complete = check_global_setup_complete()
+        configured_services = get_configured_services()
+        available_services = get_service_configuration_info()
         
-        # Check if user has any configurable services set up
-        configurable_services = ['spotify', 'lastfm', 'discogs', 'youtube']
-        user_has_services = any(user_services.get(service, False) for service in configurable_services)
+        # Check user-specific setup if authenticated
+        user_setup_complete = True
+        if current_user:
+            # Check if user has setup progress record
+            user_progress = db.query(SetupProgress).filter(
+                SetupProgress.user_id == current_user.id
+            ).first()
+            
+            user_setup_complete = bool(user_progress and user_progress.setup_completed)
+            
+            # Update service status with user-specific info
+            if HAS_USER_SERVICES:
+                user_services = check_user_service_status(current_user.id, db)
+                for service_name in available_services:
+                    if service_name in user_services:
+                        available_services[service_name]['user_configured'] = user_services[service_name]
         
         # Determine if setup is required
-        user_setup_completed = (
-            setup_progress and setup_progress.is_completed
-        ) or current_user.setup_completed
+        setup_required = not global_setup_complete or (current_user and not user_setup_complete)
         
-        # If user has no setup progress but has services configured, consider setup complete
-        if not user_setup_completed and user_has_services:
-            user_setup_completed = True
-            # Create or update setup progress
-            if not setup_progress:
-                setup_progress = SetupProgress(
-                    user_id=current_user.id,
-                    is_completed=True,
-                    completed_at=datetime.utcnow(),
-                    services_configured=user_services
-                )
-                db.add(setup_progress)
-            else:
-                setup_progress.is_completed = True
-                setup_progress.completed_at = datetime.utcnow()
-                setup_progress.services_configured = user_services
-            
-            # Update user record
-            current_user.setup_completed = True
-            current_user.setup_completed_at = datetime.utcnow()
-            db.commit()
-        
-        return {
-            "requires_setup": not user_setup_completed,
-            "user_setup_completed": user_setup_completed,
-            "global_setup_completed": spotify_configured,
-            "services_configured": {
-                **user_services,
-                "spotify_server_configured": spotify_configured
-            },
-            "reason": "Setup complete" if user_setup_completed else "User setup required"
-        }
+        return SetupStatusResponse(
+            setup_required=setup_required,
+            global_setup_complete=global_setup_complete,
+            user_setup_complete=user_setup_complete,
+            available_services=available_services,
+            configured_services=configured_services
+        )
         
     except Exception as e:
-        logger.error(f"Setup status check failed: {e}")
-        return {
-            "requires_setup": True,
-            "user_setup_completed": False,
-            "global_setup_completed": False,
-            "services_configured": {},
-            "reason": f"Error checking setup: {str(e)}"
-        }
-
-@router.post("/complete")
-async def complete_setup(
-    setup_data: SetupCompleteRequest,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """Mark initial setup as complete for the current user"""
-    try:
-        # Get or create setup progress
-        setup_progress = db.query(SetupProgress).filter(
-            SetupProgress.user_id == current_user.id
-        ).first()
-        
-        if not setup_progress:
-            setup_progress = SetupProgress(
-                user_id=current_user.id,
-                is_completed=True,
-                completed_at=datetime.utcnow(),
-                steps_completed=setup_data.steps_completed,
-                services_configured=setup_data.services_configured
-            )
-            db.add(setup_progress)
-        else:
-            setup_progress.is_completed = True
-            setup_progress.completed_at = datetime.utcnow()
-            setup_progress.steps_completed = setup_data.steps_completed
-            setup_progress.services_configured = setup_data.services_configured
-        
-        # Update user record
-        current_user.setup_completed = True
-        current_user.setup_completed_at = datetime.utcnow()
-        
-        db.commit()
-        
-        logger.info(f"Setup completed for user {current_user.username}")
-        
-        return {
-            "message": "Setup completed successfully",
-            "completed_at": setup_progress.completed_at,
-            "steps_completed": setup_progress.steps_completed,
-            "services_configured": setup_progress.services_configured
-        }
-        
-    except Exception as e:
-        logger.error(f"Setup completion failed for user {current_user.id}: {e}")
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to complete setup"
+        logger.error(f"Error checking setup status: {e}")
+        return SetupStatusResponse(
+            setup_required=True,
+            global_setup_complete=False,
+            user_setup_complete=False,
+            available_services=get_service_configuration_info(),
+            configured_services=[]
         )
 
 @router.get("/configuration")
-async def get_service_configuration_info():
-    """Get information about available service configurations"""
+async def get_setup_configuration():
+    """Get detailed service configuration information"""
     return {
-        "spotify": {
-            "name": "Spotify",
-            "type": "oauth",
-            "server_configured": bool(
-                os.getenv('SPOTIFY_CLIENT_ID') and 
-                os.getenv('SPOTIFY_CLIENT_SECRET')
-            ),
-            "user_configurable": False,
-            "description": "Connect your Spotify account for music library access"
-        },
-        "lastfm": {
-            "name": "Last.fm",
-            "type": "api_key",
-            "server_configured": True,  # No server config needed
-            "user_configurable": True,
-            "description": "Rich music metadata and scrobbling data"
-        },
-        "discogs": {
-            "name": "Discogs",
-            "type": "token",
-            "server_configured": True,  # No server config needed
-            "user_configurable": True,
-            "description": "Comprehensive music release database"
-        },
-        "youtube": {
-            "name": "YouTube",
-            "type": "api_key",
-            "server_configured": True,  # No server config needed
-            "user_configurable": True,
-            "description": "YouTube music videos and data"
-        },
-        "apple_music": {
-            "name": "Apple Music",
-            "type": "built_in",
-            "server_configured": True,
-            "user_configurable": False,
-            "description": "Search links to Apple Music (always available)"
-        },
-        "musicbrainz": {
-            "name": "MusicBrainz",
-            "type": "built_in",
-            "server_configured": True,
-            "user_configurable": False,
-            "description": "Open music encyclopedia (always available)"
+        "services": get_service_configuration_info(),
+        "setup_flow": {
+            "steps": [
+                {"id": "welcome", "title": "Welcome to MixView"},
+                {"id": "services", "title": "Configure Services"},
+                {"id": "test", "title": "Test Connections"},
+                {"id": "complete", "title": "Setup Complete"}
+            ]
         }
     }
+
+@router.post("/service-config")
+async def save_service_configuration(
+    request: ServiceConfigRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Save service configuration using your existing service management"""
+    try:
+        if not HAS_USER_SERVICES:
+            raise HTTPException(
+                status_code=status.HTTP_501_NOT_IMPLEMENTED,
+                detail="Service management not available"
+            )
+        
+        service = request.service.lower()
+        config = request.config
+        
+        # Use your existing UserServiceManager
+        service_manager = UserServiceManager(db)
+        
+        # Store credentials using your existing system
+        success = False
+        if service == "lastfm" and "api_key" in config:
+            success = service_manager.store_user_credentials(
+                current_user.id, "lastfm", {"api_key": config["api_key"]}, "api_key"
+            )
+        elif service == "discogs" and "token" in config:
+            success = service_manager.store_user_credentials(
+                current_user.id, "discogs", {"token": config["token"]}, "token"
+            )
+        
+        if success:
+            # Update setup progress
+            progress = db.query(SetupProgress).filter(
+                SetupProgress.user_id == current_user.id
+            ).first()
+            
+            if not progress:
+                progress = SetupProgress(user_id=current_user.id)
+                db.add(progress)
+            
+            if not progress.configured_services:
+                progress.configured_services = []
+            
+            if service not in progress.configured_services:
+                progress.configured_services.append(service)
+            
+            db.commit()
+            
+            return {"success": True, "message": f"{service.title()} configuration saved"}
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Failed to save {service} configuration"
+            )
+        
+    except Exception as e:
+        logger.error(f"Error saving service configuration: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to save {request.service} configuration"
+        )
 
 @router.get("/progress")
 async def get_setup_progress(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Get detailed setup progress for the current user"""
+    """Get user's setup progress"""
+    progress = db.query(SetupProgress).filter(
+        SetupProgress.user_id == current_user.id
+    ).first()
+    
+    if not progress:
+        return {
+            "setup_completed": False,
+            "configured_services": [],
+            "current_step": "welcome",
+            "completion_percentage": 0
+        }
+    
+    configured_count = len(progress.configured_services or [])
+    total_services = 4  # spotify, lastfm, discogs, youtube
+    completion_percentage = min((configured_count / total_services) * 100, 100)
+    
+    return {
+        "setup_completed": progress.setup_completed,
+        "configured_services": progress.configured_services or [],
+        "current_step": progress.current_step or "welcome",
+        "completion_percentage": completion_percentage
+    }
+
+@router.post("/complete")
+async def complete_setup(
+    request: SetupCompleteRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Mark setup as complete for the user"""
     try:
-        setup_progress = db.query(SetupProgress).filter(
+        progress = db.query(SetupProgress).filter(
             SetupProgress.user_id == current_user.id
         ).first()
         
-        if not setup_progress:
-            return {
-                "exists": False,
-                "is_completed": False,
-                "steps_completed": [],
-                "services_configured": {},
-                "created_at": None,
-                "completed_at": None
-            }
+        if not progress:
+            progress = SetupProgress(user_id=current_user.id)
+            db.add(progress)
+        
+        progress.setup_completed = True
+        progress.configured_services = request.services_configured
+        progress.current_step = "complete"
+        
+        db.commit()
+        
+        logger.info(f"Setup completed for user {current_user.id}")
         
         return {
-            "exists": True,
-            "is_completed": setup_progress.is_completed,
-            "steps_completed": setup_progress.steps_completed or [],
-            "services_configured": setup_progress.services_configured or {},
-            "created_at": setup_progress.created_at,
-            "completed_at": setup_progress.completed_at
+            "success": True,
+            "message": "Setup completed successfully!",
+            "configured_services": request.services_configured
         }
         
     except Exception as e:
-        logger.error(f"Failed to get setup progress for user {current_user.id}: {e}")
+        logger.error(f"Error completing setup: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve setup progress"
+            detail="Failed to complete setup"
         )
 
 @router.post("/reset")
@@ -274,63 +359,23 @@ async def reset_setup(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Reset setup progress for the current user (for testing/debugging)"""
+    """Reset setup progress (useful for testing)"""
     try:
-        # Remove setup progress
-        setup_progress = db.query(SetupProgress).filter(
+        progress = db.query(SetupProgress).filter(
             SetupProgress.user_id == current_user.id
         ).first()
         
-        if setup_progress:
-            db.delete(setup_progress)
+        if progress:
+            progress.setup_completed = False
+            progress.configured_services = []
+            progress.current_step = "welcome"
+            db.commit()
         
-        # Reset user setup status
-        current_user.setup_completed = False
-        current_user.setup_completed_at = None
-        
-        db.commit()
-        
-        logger.info(f"Setup reset for user {current_user.username}")
-        
-        return {
-            "message": "Setup progress reset successfully",
-            "user_id": current_user.id
-        }
+        return {"success": True, "message": "Setup reset successfully"}
         
     except Exception as e:
-        logger.error(f"Setup reset failed for user {current_user.id}: {e}")
-        db.rollback()
+        logger.error(f"Error resetting setup: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to reset setup"
         )
-
-@router.get("/health")
-async def setup_health_check():
-    """Health check for setup-related functionality"""
-    try:
-        # Check environment variables
-        spotify_configured = bool(
-            os.getenv('SPOTIFY_CLIENT_ID') and 
-            os.getenv('SPOTIFY_CLIENT_SECRET')
-        )
-        
-        database_configured = bool(os.getenv('DATABASE_URL'))
-        
-        return {
-            "status": "healthy",
-            "checks": {
-                "spotify_oauth": "configured" if spotify_configured else "not_configured",
-                "database": "configured" if database_configured else "not_configured",
-                "setup_endpoints": "operational"
-            },
-            "timestamp": datetime.utcnow().isoformat()
-        }
-        
-    except Exception as e:
-        logger.error(f"Setup health check failed: {e}")
-        return {
-            "status": "unhealthy",
-            "error": str(e),
-            "timestamp": datetime.utcnow().isoformat()
-        }
