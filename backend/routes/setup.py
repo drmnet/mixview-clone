@@ -9,13 +9,13 @@ import logging
 from pydantic import BaseModel
 
 # Import your existing database and auth systems
-from ..db_package.database import get_db
-from ..db_package.models import User, SetupProgress
-from .auth import get_current_user
+from db_package.database import get_db
+from db_package.models import User, SetupProgress
+from routes.auth import get_current_user
 
 # Import your existing service management (if available)
 try:
-    from ..user_services import UserServiceManager
+    from user_services import UserServiceManager
     HAS_USER_SERVICES = True
 except ImportError:
     HAS_USER_SERVICES = False
