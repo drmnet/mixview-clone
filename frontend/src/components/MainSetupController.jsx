@@ -466,7 +466,7 @@ function MainSetupController({ onSetupComplete, initialStep = 0 }) {
   useEffect(() => {    
     const savedUser = localStorage.getItem('user');
     
-    if (token && savedUser) {
+    if (authToken && savedUser) {
       try {
         const userData = JSON.parse(savedUser);
         setCurrentUser(userData);
