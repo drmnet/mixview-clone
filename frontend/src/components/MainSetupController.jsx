@@ -170,20 +170,28 @@ const LocalAccountForm = ({ onAccountCreated, onError, loading }) => {
   return (
     <div className="local-account-form">
       <div className="form-toggle">
-        <button
-          type="button"
-          onClick={() => setIsLogin(false)}
-          className={`toggle-button ${!isLogin ? 'active' : ''}`}
-        >
-          Create Account
-        </button>
-        <button
-          type="button"
-          onClick={() => setIsLogin(true)}
-          className={`toggle-button ${isLogin ? 'active' : ''}`}
-        >
-          Sign In
-        </button>
+        <div className="toggle-header">
+          <h3>{isLogin ? 'Sign In to Your Account' : 'Create New Account'}</h3>
+          <p>{isLogin ? 'Welcome back! Enter your credentials below.' : 'Join MixView to start discovering music connections.'}</p>
+        </div>
+       <div className="toggle-buttons">
+          <button
+            type="button"
+            onClick={() => setIsLogin(false)}
+            className={`toggle-button ${!isLogin ? 'active' : ''}`}
+          >
+            <span className="toggle-icon">{!isLogin ? '✓' : '○'}</span>
+            Create Account
+          </button>
+          <button
+            type="button"
+            onClick={() => setIsLogin(true)}
+            className={`toggle-button ${isLogin ? 'active' : ''}`}
+          >
+            <span className="toggle-icon">{isLogin ? '✓' : '○'}</span>
+            Sign In
+          </button>
+        </div>
       </div>
 
       <form onSubmit={handleSubmit} className="account-form">
@@ -1169,6 +1177,12 @@ function MainSetupController({ onSetupComplete, initialStep = 0 }) {
       )}
 
       <style jsx>{`
+        /* Override all global button styles for account form */
+        
+        .main-setup-controller .local-account-form button {
+          all: unset;
+          box-sizing: border-box;
+        }
         .main-setup-controller {
           max-width: 800px;
           margin: 0 auto;
@@ -1178,6 +1192,37 @@ function MainSetupController({ onSetupComplete, initialStep = 0 }) {
           flex-direction: column;
           gap: 2rem;
           border-radius: 8px;
+        }
+
+        /* Toggle improvements */
+        .main-setup-controller .local-account-form .toggle-header {
+          text-align: center;
+          margin-bottom: 1.5rem;
+        }
+
+        .main-setup-controller .local-account-form .toggle-header h3 {
+          margin: 0 0 0.5rem 0;
+          color: #333;
+          font-size: 1.3rem;
+        }
+
+        .main-setup-controller .local-account-form .toggle-header p {
+          margin: 0;
+          color: #666;
+          font-size: 0.9rem;
+        }
+
+        .main-setup-controller .local-account-form .toggle-buttons {
+          display: flex;
+          background: #f8f9fa;
+          border-radius: 8px;
+          padding: 4px;
+          margin-bottom: 1rem;
+        }
+
+        .main-setup-controller .local-account-form .toggle-icon {
+          margin-right: 8px;
+          font-weight: bold;
         }
 
         .loading-overlay {
