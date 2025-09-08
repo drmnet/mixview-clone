@@ -1177,6 +1177,7 @@ function MainSetupController({ onSetupComplete, initialStep = 0 }) {
           display: flex;
           flex-direction: column;
           gap: 2rem;
+          border-radius: 8px;
         }
 
         .loading-overlay {
@@ -1433,38 +1434,38 @@ function MainSetupController({ onSetupComplete, initialStep = 0 }) {
           font-weight: 600;
         }
 
-        /* Local Account Form */
-        .local-account-form {
+        /* Local Account Form - Force specificity */
+        .main-setup-controller .local-account-form {
           display: flex;
           flex-direction: column;
           gap: 2rem;
         }
 
-        .form-toggle {
-          display: flex;
-          background: #f8f9fa;
-          border-radius: 8px;
-          padding: 4px;
-          margin-bottom: 1rem;
+        .main-setup-controller .local-account-form .form-toggle {
+          display: flex !important;
+          background: #f8f9fa !important;
+          border-radius: 8px !important;
+          padding: 4px !important;
+          margin-bottom: 1rem !important;
         }
 
-        .toggle-button {
-          flex: 1;
-          padding: 12px 16px;
-          background: transparent;
-          border: none;
-          border-radius: 6px;
-          font-size: 14px;
-          font-weight: 500;
-          cursor: pointer;
-          transition: all 0.3s ease;
-          color: #666;
+        .main-setup-controller .local-account-form .toggle-button {
+          flex: 1 !important;
+          padding: 12px 16px !important;
+          background: transparent !important;
+          border: none !important;
+          border-radius: 6px !important;
+          font-size: 14px !important;
+          font-weight: 500 !important;
+          cursor: pointer !important;
+          transition: all 0.3s ease !important;
+          color: #666 !important;
         }
 
-        .toggle-button.active {
-          background: #667eea;
-          color: white;
-          box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);
+        .main-setup-controller .local-account-form .toggle-button.active {
+          background: #667eea !important;
+          color: white !important;
+          box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3) !important;
         }
 
         .account-form {
@@ -1515,34 +1516,35 @@ function MainSetupController({ onSetupComplete, initialStep = 0 }) {
           margin-top: 4px;
         }
 
-        .submit-button {
-          padding: 14px 24px;
-          background: #667eea;
-          color: white;
-          border: none;
-          border-radius: 6px;
-          font-size: 16px;
-          font-weight: 600;
-          cursor: pointer;
-          transition: all 0.3s ease;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 8px;
-          margin-top: 1rem;
+        .main-setup-controller .local-account-form .submit-button {
+          padding: 14px 24px !important;
+          background: #667eea !important;
+          color: white !important;
+          border: none !important;
+          border-radius: 6px !important;
+          font-size: 16px !important;
+          font-weight: 600 !important;
+          cursor: pointer !important;
+          transition: all 0.3s ease !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          gap: 8px !important;
+          margin-top: 1rem !important;
+          width: 100% !important;
         }
 
-        .submit-button:hover:not(:disabled) {
-          background: #5a6fd8;
-          transform: translateY(-1px);
-          box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        .main-setup-controller .local-account-form .submit-button:hover:not(:disabled) {
+          background: #5a6fd8 !important;
+          transform: translateY(-1px) !important;
+          box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4) !important;
         }
 
-        .submit-button:disabled {
-          opacity: 0.6;
-          cursor: not-allowed;
-          transform: none;
-          box-shadow: none;
+        .main-setup-controller .local-account-form .submit-button:disabled {
+          opacity: 0.6 !important;
+          cursor: not-allowed !important;
+          transform: none !important;
+          box-shadow: none !important;
         }
 
         .login-note {
