@@ -463,8 +463,7 @@ function MainSetupController({ onSetupComplete, initialStep = 0 }) {
   }, [authToken]);
 
   // Check if user is already authenticated
-  useEffect(() => {
-    const token = localStorage.getItem('token');
+  useEffect(() => {    
     const savedUser = localStorage.getItem('user');
     
     if (token && savedUser) {

@@ -15,9 +15,15 @@ function SpotifySetupEnhanced({ onConnected, onError, onLoadingChange, isConnect
   const [popupWindow, setPopupWindow] = useState(null);
   const [connectionDetails, setConnectionDetails] = useState(null);
   const pollTimerRef = useRef(null);
-
+  const [serverCredentialsConfigured, setServerCredentialsConfigured] = useState(false);
+  const [serverCredentials, setServerCredentials] = useState({
+    client_id: '',
+    client_secret: ''
+  });
+  const [credentialErrors, setCredentialErrors] = useState({});
+  const [savingCredentials, setSavingCredentials] = useState(false);
   const API_BASE = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8001';
-  const token = localStorage.getItem('token');
+  const authToken = localStorage.getItem('token');
 
   // Cleanup popup on unmount
   useEffect(() => {
@@ -48,6 +54,64 @@ function SpotifySetupEnhanced({ onConnected, onError, onLoadingChange, isConnect
     onLoadingChange(loading || setupPhase === 'connecting');
   }, [loading, setupPhase, onLoadingChange]);
 
+// Handle server credential input changes
+  const handleCredentialChange = (field, value) => {
+    setServerCredentials(prev => ({ ...prev, [field]: value }));
+    
+    // Clear field error
+    if (credentialErrors[field]) {
+      setCredentialErrors(prev => ({ ...prev, [field]: null }));
+    }
+  };
+
+const handleSaveServerCredentials = async () => {
+  // Validate credentials
+  const errors = {};
+  if (!serverCredentials.client_id) {
+    errors.client_id = 'Client ID is required';
+  }
+  if (!serverCredentials.client_secret) {
+    errors.client_secret = 'Client Secret is required';
+  }
+  
+  if (Object.keys(errors).length > 0) {
+    setCredentialErrors(errors);
+    return;
+  }
+
+  setSavingCredentials(true);
+  
+  try {
+    const response = await fetch(`${API_BASE}/setup/server-config`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${authToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        service_name: 'spotify',
+        credentials: {
+          client_id: serverCredentials.client_id,
+          client_secret: serverCredentials.client_secret
+        }
+      })
+    });
+
+    if (response.ok) {
+      setServerCredentialsConfigured(true);
+      setCredentialErrors({});
+      setSetupPhase('intro'); // Move to OAuth phase    } else {
+      const errorData = await response.json();
+      throw new Error(errorData.detail || 'Failed to save server credentials');
+    }
+  } catch (error) {
+    console.error('Error saving server credentials:', error);
+    setCredentialErrors({ general: error.message });
+  } finally {
+    setSavingCredentials(false);
+  }
+};
+
   // Handle OAuth initiation
   const handleSpotifyConnect = async () => {
     setSetupPhase('connecting');
@@ -56,7 +120,7 @@ function SpotifySetupEnhanced({ onConnected, onError, onLoadingChange, isConnect
     try {
       const response = await fetch(`${API_BASE}/oauth/spotify/auth`, {
         headers: {
-          'Authorization': `Bearer ${token}`,
+          'Authorization': `Bearer ${authToken}`,
           'Content-Type': 'application/json'
         }
       });
@@ -203,210 +267,186 @@ function SpotifySetupEnhanced({ onConnected, onError, onLoadingChange, isConnect
   };
 
   // Render different phases
-  const renderIntroPhase = () => (
+  const renderIntroPhase = () => {
+  if (!serverCredentialsConfigured) {
+    return (
+      <div className="server-credentials-setup">
+        <div className="service-header">
+          <div className="service-icon-large">🎵</div>
+          <h2>Configure Spotify Server Settings</h2>
+          <p>First, we need to set up your Spotify Developer credentials to enable OAuth authentication.</p>
+        </div>
+
+        <InstructionPanel title="Get Your Spotify Developer Credentials" type="info" collapsible defaultExpanded>
+          <ol>
+            <li>Go to <a href="https://developer.spotify.com/dashboard/" target="_blank" rel="noopener noreferrer">Spotify Developer Dashboard</a></li>
+            <li>Log in with your Spotify account</li>
+            <li>Click "Create an App"</li>
+            <li>Fill in the app details:
+              <ul>
+                <li><strong>App name:</strong> "MixView Music Discovery"</li>
+                <li><strong>App description:</strong> "Personal music discovery application"</li>
+                <li><strong>Website:</strong> Leave blank or use your personal site</li>
+                <li><strong>Redirect URI:</strong> <code>{API_BASE}/oauth/spotify/callback</code></li>
+              </ul>
+            </li>
+            <li>Click "Save"</li>
+            <li>Copy your <strong>Client ID</strong> and <strong>Client Secret</strong> from the app settings</li>
+          </ol>
+        </InstructionPanel>
+
+        <div className="credentials-form">
+          {credentialErrors.general && (
+            <div className="error-message" style={{
+              background: '#f8d7da',
+              color: '#721c24',
+              padding: '12px',
+              borderRadius: '6px',
+              marginBottom: '1rem'
+            }}>
+              {credentialErrors.general}
+            </div>
+          )}
+          
+          <div className="form-group">
+            <label htmlFor="client_id">Spotify Client ID</label>
+            <input
+              type="text"
+              id="client_id"
+              value={serverCredentials.client_id}
+              onChange={(e) => handleCredentialChange('client_id', e.target.value)}
+              placeholder="Enter your Spotify Client ID"
+              disabled={savingCredentials}
+              style={{
+                padding: '12px',
+                border: credentialErrors.client_id ? '2px solid #dc3545' : '2px solid #ddd',
+                borderRadius: '6px',
+                fontSize: '16px',
+                width: '100%'
+              }}
+            />
+            {credentialErrors.client_id && (
+              <span style={{ color: '#dc3545', fontSize: '12px', marginTop: '4px', display: 'block' }}>
+                {credentialErrors.client_id}
+              </span>
+            )}
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="client_secret">Spotify Client Secret</label>
+            <input
+              type="password"
+              id="client_secret"
+              value={serverCredentials.client_secret}
+              onChange={(e) => handleCredentialChange('client_secret', e.target.value)}
+              placeholder="Enter your Spotify Client Secret"
+              disabled={savingCredentials}
+              style={{
+                padding: '12px',
+                border: credentialErrors.client_secret ? '2px solid #dc3545' : '2px solid #ddd',
+                borderRadius: '6px',
+                fontSize: '16px',
+                width: '100%'
+              }}
+            />
+            {credentialErrors.client_secret && (
+              <span style={{ color: '#dc3545', fontSize: '12px', marginTop: '4px', display: 'block' }}>
+                {credentialErrors.client_secret}
+              </span>
+            )}
+          </div>
+
+          <button
+            onClick={handleSaveServerCredentials}
+            disabled={savingCredentials}
+            style={{
+              padding: '14px 24px',
+              background: savingCredentials ? '#6c757d' : '#667eea',
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px',
+              fontSize: '16px',
+              fontWeight: '600',
+              cursor: savingCredentials ? 'not-allowed' : 'pointer',
+              width: '100%',
+              marginTop: '1rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px'
+            }}
+          >
+            {savingCredentials ? (
+              <>
+                <LoadingSpinner size="small" color="white" />
+                <span>Saving Server Credentials...</span>
+              </>
+            ) : (
+              'Save Server Credentials'
+            )}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Original intro phase content for OAuth connection
+  return (
     <div className="spotify-intro">
       <div className="service-header">
         <div className="service-icon-large">🎵</div>
-        <h2>Connect Spotify</h2>
-        <p>Connect your Spotify account to unlock powerful music discovery features.</p>
+        <h2>Connect Your Spotify Account</h2>
+        <p>Great! Server credentials are configured. Now connect your personal Spotify account.</p>
       </div>
 
-      <div className="features-grid">
-        <div className="feature-card">
-          <div className="feature-icon">🎧</div>
-          <h4>Your Music Library</h4>
-          <p>Access your saved tracks, albums, and playlists for personalized recommendations.</p>
-        </div>
-        <div className="feature-card">
-          <div className="feature-icon">📊</div>
-          <h4>Listening History</h4>
-          <p>Discover patterns in your top artists and tracks across different time periods.</p>
-        </div>
-        <div className="feature-card">
-          <div className="feature-icon">🔍</div>
-          <h4>Rich Metadata</h4>
-          <p>Get detailed information about artists, albums, and tracks from Spotify's database.</p>
-        </div>
-        <div className="feature-card">
-          <div className="feature-icon">🎯</div>
-          <h4>Smart Recommendations</h4>
-          <p>Receive personalized music suggestions based on your listening preferences.</p>
+      <div className="features-overview">
+        <h3>What you'll get with Spotify:</h3>
+        <div className="features-grid">
+          <div className="feature-card">
+            <div className="feature-icon">🎵</div>
+            <h4>Your Music Library</h4>
+            <p>Access your saved tracks, albums, and playlists</p>
+          </div>
+          <div className="feature-card">
+            <div className="feature-icon">📊</div>
+            <h4>Listening Insights</h4>
+            <p>Discover patterns in your music taste and habits</p>
+          </div>
+          <div className="feature-card">
+            <div className="feature-icon">🎯</div>
+            <h4>Smart Recommendations</h4>
+            <p>Get personalized suggestions based on your preferences</p>
+          </div>
+          <div className="feature-card">
+            <div className="feature-icon">🔍</div>
+            <h4>Music Discovery</h4>
+            <p>Find connections between artists, albums, and genres</p>
+          </div>
         </div>
       </div>
 
-      <InstructionPanel title="How Spotify Connection Works" type="info">
-        <ol>
-          <li><strong>OAuth Authorization:</strong> We'll open Spotify's secure login page in a popup window</li>
-          <li><strong>Permission Grant:</strong> You'll authorize MixView to access your music data</li>
-          <li><strong>Secure Storage:</strong> Your access credentials are encrypted and stored securely</li>
-          <li><strong>Ready to Use:</strong> Start exploring your music connections immediately</li>
-        </ol>
-        <p><strong>Privacy Note:</strong> We only request read access to your music data. We cannot modify your playlists or listening history.</p>
-      </InstructionPanel>
-
-      <div className="oauth-permissions">
-        <h4>🔒 Required Permissions</h4>
-        <ul className="permissions-list">
-          <li>✓ View your profile information</li>
-          <li>✓ Access your saved music library</li>
-          <li>✓ Read your top artists and tracks</li>
-          <li>✓ View your playlists (read-only)</li>
-        </ul>
-      </div>
-
-      {error && (
-        <ErrorMessage 
-          message={error} 
-          onClose={() => onError(null)} 
-        />
-      )}
-
-      {oauthAttempts > 0 && (
-        <div className="retry-info">
-          <p>Attempt #{oauthAttempts + 1}</p>
-          {oauthAttempts >= 2 && (
-            <button 
-              onClick={() => setShowTroubleshooting(!showTroubleshooting)}
-              className="troubleshooting-button"
-            >
-              {showTroubleshooting ? 'Hide' : 'Show'} Troubleshooting Tips
-            </button>
+      <div className="setup-actions">
+        <button 
+          onClick={handleSpotifyConnect}
+          disabled={loading}
+          className="setup-button primary"
+        >
+          {loading ? (
+            <>
+              <LoadingSpinner size="small" color="white" />
+              <span>Connecting...</span>
+            </>
+          ) : (
+            <>
+              <span className="spotify-logo">🎵</span>
+              <span>Connect with Spotify</span>
+            </>
           )}
-        </div>
-      )}
-
-      {showTroubleshooting && renderTroubleshooting()}
-
-      <button 
-        onClick={handleSpotifyConnect}
-        disabled={loading}
-        className="oauth-button"
-      >
-        {loading ? (
-          <>
-            <LoadingSpinner size="small" color="white" />
-            <span>Connecting...</span>
-          </>
-        ) : (
-          <>
-            <span className="spotify-logo">🎵</span>
-            <span>Connect with Spotify</span>
-          </>
-        )}
-      </button>
-    </div>
-  );
-
-  const renderConnectingPhase = () => (
-    <div className="spotify-connecting">
-      <div className="connecting-animation">
-        <LoadingSpinner size="large" />
-        <h3>Connecting to Spotify</h3>
-        <p>Please complete the authorization in the popup window...</p>
-      </div>
-
-      <div className="connecting-steps">
-        <div className="step active">
-          <span className="step-number">1</span>
-          <span>Opening Spotify authorization</span>
-        </div>
-        <div className="step">
-          <span className="step-number">2</span>
-          <span>Log in to your Spotify account</span>
-        </div>
-        <div className="step">
-          <span className="step-number">3</span>
-          <span>Grant permissions to MixView</span>
-        </div>
-        <div className="step">
-          <span className="step-number">4</span>
-          <span>Connection established!</span>
-        </div>
-      </div>
-
-      <div className="connecting-help">
-        <h4>Don't see the popup?</h4>
-        <ul>
-          <li>Check if your browser blocked the popup</li>
-          <li>Disable any popup blockers for this site</li>
-          <li>Try clicking the connect button again</li>
-        </ul>
-      </div>
-
-      <button onClick={resetSetup} className="cancel-button">
-        Cancel Connection
-      </button>
-    </div>
-  );
-
-  const renderConnectedPhase = () => (
-    <div className="spotify-connected">
-      <div className="success-header">
-        <div className="success-icon">✅</div>
-        <h3>Spotify Connected Successfully!</h3>
-        <p>Your Spotify account is now linked and ready to use.</p>
-      </div>
-
-      <ServiceConnectionStatus
-        service="spotify"
-        connected={true}
-        testing={setupPhase === 'testing'}
-        onTest={testConnection}
-        onDisconnect={handleDisconnect}
-      />
-
-      {connectionDetails && (
-        <div className="connection-details">
-          <h4>Connection Details</h4>
-          <div className="detail-grid">
-            <div className="detail-item">
-              <strong>Connected:</strong>
-              <span>{new Date(connectionDetails.connectedAt).toLocaleString()}</span>
-            </div>
-            {connectionDetails.lastTested && (
-              <div className="detail-item">
-                <strong>Last Tested:</strong>
-                <span>{new Date(connectionDetails.lastTested).toLocaleString()}</span>
-              </div>
-            )}
-            {connectionDetails.testResult && (
-              <div className="detail-item">
-                <strong>Status:</strong>
-                <span>{connectionDetails.testResult}</span>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      <div className="next-steps">
-        <h4>🎉 What's Next</h4>
-        <div className="next-steps-list">
-          <div className="next-step">
-            <span className="step-icon">🔍</span>
-            <div>
-              <strong>Start Searching</strong>
-              <p>Search for your favorite artists to see your music connections</p>
-            </div>
-          </div>
-          <div className="next-step">
-            <span className="step-icon">📊</span>
-            <div>
-              <strong>Explore Your Data</strong>
-              <p>Discover insights from your Spotify listening history</p>
-            </div>
-          </div>
-          <div className="next-step">
-            <span className="step-icon">🎯</span>
-            <div>
-              <strong>Get Recommendations</strong>
-              <p>Receive personalized music suggestions based on your taste</p>
-            </div>
-          </div>
-        </div>
+        </button>
       </div>
     </div>
   );
+};
 
   const renderTroubleshooting = () => (
     <InstructionPanel title="🔧 Troubleshooting Spotify Connection" type="warning">
