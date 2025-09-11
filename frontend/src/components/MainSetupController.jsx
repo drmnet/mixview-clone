@@ -170,17 +170,31 @@ const LocalAccountForm = ({ onAccountCreated, onError, loading }) => {
   return (
     <div className="local-account-form">
       <div className="form-toggle">
-        <div className="toggle-header">
-          <h3>{isLogin ? 'Sign In to Your Account' : 'Create New Account'}</h3>
-          <p>{isLogin ? 'Welcome back! Enter your credentials below.' : 'Join MixView to start discovering music connections.'}</p>
-        </div>
        <div className="toggle-buttons">
+         <button
+           type="button"
+           onClick={() => setIsLogin(false)}
+           className={`toggle-button ${!isLogin ? 'active' : ''}`}
+         >
+           Create Account
+         </button>
+         <button
+           type="button"
+           onClick={() => setIsLogin(true)}
+           className={`toggle-button ${isLogin ? 'active' : ''}`}
+         >
+           Sign In
+         </button>
+       </div>
+       <div className="toggle-header">
+         <h3>{isLogin ? 'Sign In to Your Account' : 'Create New Account'}</h3>
+         <p>{isLogin ? 'Welcome back! Enter your credentials below.' : 'Join MixView to start discovering music connections.'}</p>
+       </div>
           <button
             type="button"
             onClick={() => setIsLogin(false)}
             className={`toggle-button ${!isLogin ? 'active' : ''}`}
           >
-            <span className="toggle-icon">{!isLogin ? '✓' : '○'}</span>
             Create Account
           </button>
           <button
@@ -188,7 +202,6 @@ const LocalAccountForm = ({ onAccountCreated, onError, loading }) => {
             onClick={() => setIsLogin(true)}
             className={`toggle-button ${isLogin ? 'active' : ''}`}
           >
-            <span className="toggle-icon">{isLogin ? '✓' : '○'}</span>
             Sign In
           </button>
         </div>
@@ -1218,11 +1231,6 @@ function MainSetupController({ onSetupComplete, initialStep = 0 }) {
           border-radius: 8px;
           padding: 4px;
           margin-bottom: 1rem;
-        }
-
-        .main-setup-controller .local-account-form .toggle-icon {
-          margin-right: 8px;
-          font-weight: bold;
         }
 
         .loading-overlay {
