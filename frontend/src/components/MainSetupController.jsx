@@ -191,20 +191,6 @@ const LocalAccountForm = ({ onAccountCreated, onError, loading }) => {
             <h3>{isLogin ? 'Sign In to Your Account' : 'Create New Account'}</h3>
             <p>{isLogin ? 'Welcome back! Enter your credentials below.' : 'Join MixView to start discovering music connections.'}</p>
           </div>
-          <button
-            type="button"
-            onClick={() => setIsLogin(false)}
-            className={`toggle-button ${!isLogin ? 'active' : ''}`}
-          >
-            Create Account
-          </button>
-          <button
-            type="button"
-            onClick={() => setIsLogin(true)}
-            className={`toggle-button ${isLogin ? 'active' : ''}`}
-          >
-            Sign In
-          </button>
         </div>
 
         <form onSubmit={handleSubmit} className="account-form">
