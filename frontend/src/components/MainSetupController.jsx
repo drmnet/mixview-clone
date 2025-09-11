@@ -168,28 +168,29 @@ const LocalAccountForm = ({ onAccountCreated, onError, loading }) => {
   };
 
   return (
-    <div className="local-account-form">
-      <div className="form-toggle">
-       <div className="toggle-buttons">
-         <button
-           type="button"
-           onClick={() => setIsLogin(false)}
-           className={`toggle-button ${!isLogin ? 'active' : ''}`}
-         >
-           Create Account
-         </button>
-         <button
-           type="button"
-           onClick={() => setIsLogin(true)}
-           className={`toggle-button ${isLogin ? 'active' : ''}`}
-         >
-           Sign In
-         </button>
-       </div>
-       <div className="toggle-header">
-         <h3>{isLogin ? 'Sign In to Your Account' : 'Create New Account'}</h3>
-         <p>{isLogin ? 'Welcome back! Enter your credentials below.' : 'Join MixView to start discovering music connections.'}</p>
-       </div>
+    <>
+      <div className="local-account-form">
+        <div className="form-toggle">
+          <div className="toggle-buttons">
+            <button
+              type="button"
+              onClick={() => setIsLogin(false)}
+              className={`toggle-button ${!isLogin ? 'active' : ''}`}
+            >
+              Create Account
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsLogin(true)}
+              className={`toggle-button ${isLogin ? 'active' : ''}`}
+            >
+              Sign In
+            </button>
+          </div>
+          <div className="toggle-header">
+            <h3>{isLogin ? 'Sign In to Your Account' : 'Create New Account'}</h3>
+            <p>{isLogin ? 'Welcome back! Enter your credentials below.' : 'Join MixView to start discovering music connections.'}</p>
+          </div>
           <button
             type="button"
             onClick={() => setIsLogin(false)}
@@ -205,78 +206,78 @@ const LocalAccountForm = ({ onAccountCreated, onError, loading }) => {
             Sign In
           </button>
         </div>
-      </div>
 
-      <form onSubmit={handleSubmit} className="account-form">
-        <div className="form-group">
-          <label htmlFor="username">Username</label>
-          <input
-            type="text"
-            id="username"
-            name="username"
-            value={formData.username}
-            onChange={handleInputChange}
-            disabled={isSubmitting || loading}
-            placeholder="Enter your username"
-            className={formErrors.username ? 'error' : ''}
-          />
-          {formErrors.username && <span className="error-text">{formErrors.username}</span>}
-        </div>
-
-        <div className="form-group">
-          <label htmlFor="password">Password</label>
-          <input
-            type="password"
-            id="password"
-            name="password"
-            value={formData.password}
-            onChange={handleInputChange}
-            disabled={isSubmitting || loading}
-            placeholder="Enter your password"
-            className={formErrors.password ? 'error' : ''}
-          />
-          {formErrors.password && <span className="error-text">{formErrors.password}</span>}
-        </div>
-
-        {!isLogin && (
+        <form onSubmit={handleSubmit} className="account-form">
           <div className="form-group">
-            <label htmlFor="confirmPassword">Confirm Password</label>
+            <label htmlFor="username">Username</label>
             <input
-              type="password"
-              id="confirmPassword"
-              name="confirmPassword"
-              value={formData.confirmPassword}
+              type="text"
+              id="username"
+              name="username"
+              value={formData.username}
               onChange={handleInputChange}
               disabled={isSubmitting || loading}
-              placeholder="Confirm your password"
-              className={formErrors.confirmPassword ? 'error' : ''}
+              placeholder="Enter your username"
+              className={formErrors.username ? 'error' : ''}
             />
-            {formErrors.confirmPassword && <span className="error-text">{formErrors.confirmPassword}</span>}
+            {formErrors.username && <span className="error-text">{formErrors.username}</span>}
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="password">Password</label>
+            <input
+              type="password"
+              id="password"
+              name="password"
+              value={formData.password}
+              onChange={handleInputChange}
+              disabled={isSubmitting || loading}
+              placeholder="Enter your password"
+              className={formErrors.password ? 'error' : ''}
+            />
+            {formErrors.password && <span className="error-text">{formErrors.password}</span>}
+          </div>
+
+          {!isLogin && (
+            <div className="form-group">
+              <label htmlFor="confirmPassword">Confirm Password</label>
+              <input
+                type="password"
+                id="confirmPassword"
+                name="confirmPassword"
+                value={formData.confirmPassword}
+                onChange={handleInputChange}
+                disabled={isSubmitting || loading}
+                placeholder="Confirm your password"
+                className={formErrors.confirmPassword ? 'error' : ''}
+              />
+              {formErrors.confirmPassword && <span className="error-text">{formErrors.confirmPassword}</span>}
+            </div>
+          )}
+
+          <button
+            type="submit"
+            disabled={isSubmitting || loading}
+            className="submit-button"
+          >
+            {isSubmitting || loading ? (
+              <>
+                <LoadingSpinner size="small" color="white" />
+                <span>{isLogin ? 'Signing In...' : 'Creating Account...'}</span>
+              </>
+            ) : (
+              <span>{isLogin ? 'Sign In' : 'Create Account'}</span>
+            )}
+          </button>
+        </form>
+
+        {isLogin && (
+          <div className="login-note">
+            <p>Don't have an account? Click "Create Account" above to register.</p>
           </div>
         )}
-
-        <button
-          type="submit"
-          disabled={isSubmitting || loading}
-          className="submit-button"
-        >
-          {isSubmitting || loading ? (
-            <>
-              <LoadingSpinner size="small" color="white" />
-              <span>{isLogin ? 'Signing In...' : 'Creating Account...'}</span>
-            </>
-          ) : (
-            <span>{isLogin ? 'Sign In' : 'Create Account'}</span>
-          )}
-        </button>
-      </form>
-
-      {isLogin && (
-        <div className="login-note">
-          <p>Don't have an account? Click "Create Account" above to register.</p>
-        </div>
-      )}
-    </div>
+      </div>
+    </>
   );
 };
 
