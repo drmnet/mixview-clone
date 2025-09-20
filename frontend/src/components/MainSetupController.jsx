@@ -493,33 +493,28 @@ function MainSetupController({ onSetupComplete, initialStep = 0 }) {
 }, []);
 
   // Check if user is already authenticated
-  useEffect(() => {    
-    const savedUser = localStorage.getItem('user');
-    const savedToken = localStorage.getItem('token');
-    
-    if (authToken && savedUser) {
-      try {
-        const userData = JSON.parse(savedUser);
-        setCurrentUser(userData);
-        setAuthToken(savedToken);
-        setAccountCreated(true);
-        
-        // Mark account creation as completed
-        if (!completedSteps.includes(0)) {
-          setCompletedSteps(prev => [...prev, 0]);
-        }
-        
-        // If we're on step 0 and account is created, move to step 1
-        if (currentStep === 0) {
-          setCurrentStep(1);
-        }
-      } catch (error) {
-        console.error('Error parsing saved user data:', error);
-        localStorage.removeItem('user');
-        localStorage.removeItem('token');
+useEffect(() => {
+  // Simple safe initialization
+  const savedToken = localStorage.getItem('token');
+  const savedUser = localStorage.getItem('user');
+  
+  if (savedToken && savedUser && !currentUser) {
+    try {
+      const userData = JSON.parse(savedUser);
+      setCurrentUser(userData);
+      setAuthToken(savedToken);
+      setAccountCreated(true);
+      
+      if (currentStep === 0) {
+        setCurrentStep(1);
       }
+    } catch (error) {
+      console.error('Error parsing saved user data:', error);
+      localStorage.removeItem('user');
+      localStorage.removeItem('token');
     }
-  }, [completedSteps, currentStep]);
+  }
+}, []); // Empty dependency array
 
   // Check service statuses
   const initializeSetup = async () => {
