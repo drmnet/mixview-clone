@@ -81,91 +81,82 @@ const LocalAccountForm = ({ onAccountCreated, onError, loading }) => {
     return errors;
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    const errors = validateForm();
-    if (Object.keys(errors).length > 0) {
-      setFormErrors(errors);
-      return;
-    }
-    
-    setIsSubmitting(true);
-    
-    try {
-      const endpoint = isLogin ? '/auth/login' : '/auth/register';
-      const payload = {
-        username: formData.username,
-        password: formData.password
-      };
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  setIsSubmitting(true);
+  setFormErrors({});
 
-      const response = await fetch(`${API_BASE}${endpoint}`, {
+  const validation = validateForm();
+  if (!validation.isValid) {
+    setFormErrors(validation.errors);
+    setIsSubmitting(false);
+    return;
+  }
+
+  try {
+    let response;
+    let endpoint;
+    
+    // Try login first if user indicates login mode, or if we get "already registered" error
+    if (isLogin) {
+      endpoint = `${API_BASE}/auth/login`;
+      response = await fetch(endpoint, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload)
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: formData.username,
+          password: formData.password
+        })
       });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.detail || `${isLogin ? 'Login' : 'Registration'} failed`);
-      }
-
-      if (isLogin) {
-        // Login successful - get user info
-        const userResponse = await fetch(`${API_BASE}/auth/me`, {
-          headers: {
-            'Authorization': `Bearer ${data.access_token}`,
-            'Content-Type': 'application/json'
-          }
-        });
-
-        if (userResponse.ok) {
-          const userData = await userResponse.json();
-          onAccountCreated(userData, data.access_token);
-        } else {
-          throw new Error('Failed to get user information');
-        }
-      } else {
-        // Registration successful - now login
-        const loginResponse = await fetch(`${API_BASE}/auth/login`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            username: formData.username,
-            password: formData.password
-          })
-        });
-
-        const loginData = await loginResponse.json();
-        
-        if (loginResponse.ok) {
-          const userResponse = await fetch(`${API_BASE}/auth/me`, {
-            headers: {
-              'Authorization': `Bearer ${loginData.access_token}`,
-              'Content-Type': 'application/json'
-            }
-          });
-
-          if (userResponse.ok) {
-            const userData = await userResponse.json();
-            onAccountCreated(userData, loginData.access_token);
-          }
-        } else {
-          throw new Error('Failed to login after registration');
-        }
-      }
-    } catch (error) {
-      console.error(`${isLogin ? 'Login' : 'Registration'} error:`, error);
-      onError(error.message || `${isLogin ? 'Login' : 'Registration'} failed`);
-    } finally {
-      setIsSubmitting(false);
+    } else {
+      // Try registration
+      endpoint = `${API_BASE}/auth/register`;
+      response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: formData.username,
+          password: formData.password
+        })
+      });
     }
-  };
+
+    if (response.ok) {
+      const data = await response.json();
+      localStorage.setItem('token', data.access_token);
+      localStorage.setItem('user', JSON.stringify({ 
+        username: formData.username,
+        id: data.user_id || data.id
+      }));
+      onAccountCreated({ username: formData.username }, data.access_token);
+    } else if (response.status === 400) {
+      const errorData = await response.json();
+      if (errorData.detail && errorData.detail.includes('already registered')) {
+        // Suggest switching to login
+        setFormErrors({ 
+          general: 'This username already exists. Please use the login option below.',
+          _suggestion: 'switch_to_login'
+        });
+        setIsLogin(true); // Auto-switch to login mode
+      } else {
+        throw new Error(errorData.detail || 'Request failed');
+      }
+    } else if (response.status === 401) {
+      setFormErrors({ general: 'Invalid username or password. Please try again.' });
+    } else {
+      throw new Error('Authentication failed');
+    }
+
+  } catch (error) {
+    console.error('Authentication error:', error);
+    onError(error.message);
+    setFormErrors({ 
+      general: error.message || 'Authentication failed. Please try again.' 
+    });
+  } finally {
+    setIsSubmitting(false);
+  }
+};
 
   return (
     <>
@@ -240,6 +231,29 @@ const LocalAccountForm = ({ onAccountCreated, onError, loading }) => {
               {formErrors.confirmPassword && <span className="error-text">{formErrors.confirmPassword}</span>}
             </div>
           )}
+
+          <div className="auth-mode-toggle" style={{ marginBottom: '1rem', textAlign: 'center' }}>
+            <p style={{ margin: '0.5rem 0', fontSize: '0.9rem', color: '#666' }}>
+              {isLogin ? "Don't have an account?" : "Already have an account?"}
+              <button
+                type="button"
+                onClick={() => {
+                  setIsLogin(!isLogin);
+                  setFormErrors({});
+                }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#007bff',
+                  textDecoration: 'underline',
+                  cursor: 'pointer',
+                  marginLeft: '0.5rem'
+                }}
+              >
+                {isLogin ? 'Create account' : 'Log in instead'}
+              </button>
+            </p>
+          </div>
 
           <button
             type="submit"
@@ -470,15 +484,24 @@ function MainSetupController({ onSetupComplete, initialStep = 0 }) {
     }
   }, [authToken]);
 
+  // Initialize authToken from localStorage on component mount
+  useEffect(() => {
+  const savedToken = localStorage.getItem('token');
+  if (savedToken && !authToken) {
+    setAuthToken(savedToken);
+  }
+}, []);
+
   // Check if user is already authenticated
   useEffect(() => {    
     const savedUser = localStorage.getItem('user');
+    const savedToken = localStorage.getItem('token');
     
     if (authToken && savedUser) {
       try {
         const userData = JSON.parse(savedUser);
         setCurrentUser(userData);
-        setAuthToken(token);
+        setAuthToken(savedToken);
         setAccountCreated(true);
         
         // Mark account creation as completed
