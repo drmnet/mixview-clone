@@ -31,6 +31,12 @@ import YoutubeSetupEnhanced from './YoutubeSetupEnhanced';
 // import DiscogsSetupEnhanced from './services/DiscogsSetupEnhanced';
 // import YoutubeSetupEnhanced from './services/YoutubeSetupEnhanced';
 
+const [isSubmitting, setIsSubmitting] = useState(false);
+
+console.log('LocalAccountForm render - formData:', formData); // ADD THIS
+
+const API_BASE = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8001';
+
 // Destructure shared UI components for use in LocalAccountForm
 const {
   LoadingSpinner,
@@ -96,9 +102,9 @@ const handleSubmit = async (e) => {
   setIsSubmitting(true);
   setFormErrors({});
 
-  const validation = validateForm();
-  if (!validation.isValid) {
-    setFormErrors(validation.errors);
+  const errors = validateForm();
+  if (Object.keys(errors).length > 0) {
+    setFormErrors(errors);
     setIsSubmitting(false);
     return;
   }
