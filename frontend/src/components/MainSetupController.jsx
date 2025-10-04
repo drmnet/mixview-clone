@@ -37,18 +37,9 @@ console.log('LocalAccountForm render - formData:', formData); // ADD THIS
 
 const API_BASE = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8001';
 
-// Destructure shared UI components for use in LocalAccountForm
-const {
-  LoadingSpinner,
-  ErrorMessage,
-  InstructionPanel,
-  ProgressIndicator,
-  ServiceCard,
-  Modal
-} = SetupUIComponents;
-
 // Local Account Form Component
 const LocalAccountForm = ({ onAccountCreated, onError, loading }) => {
+  const { LoadingSpinner, InstructionPanel } = SetupUIComponents;
   const [isLogin, setIsLogin] = useState(false);
   const [formData, setFormData] = useState({
     username: '',
@@ -349,13 +340,23 @@ const SERVICES_CONFIG = {
 };
 
 function MainSetupController({ onSetupComplete, initialStep = 0 }) {
+  
+  const {
+    LoadingSpinner,
+    ErrorMessage,
+    InstructionPanel,
+    ProgressIndicator,
+    ServiceCard,
+    Modal
+  } = SetupUIComponents;
+
   // Core setup state
   const [currentStep, setCurrentStep] = useState(initialStep);
   const [completedSteps, setCompletedSteps] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
 
-// Account creation state
+  // Account creation state
   const [accountCreated, setAccountCreated] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   const [authToken, setAuthToken] = useState(localStorage.getItem('token'));
