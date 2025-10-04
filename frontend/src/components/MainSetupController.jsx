@@ -31,6 +31,9 @@ import YoutubeSetupEnhanced from './YoutubeSetupEnhanced';
 // import DiscogsSetupEnhanced from './services/DiscogsSetupEnhanced';
 // import YoutubeSetupEnhanced from './services/YoutubeSetupEnhanced';
 
+// Destructure shared UI components for use in LocalAccountForm
+const { LoadingSpinner, ErrorMessage, InstructionPanel } = SetupUIComponents;
+
 // Local Account Form Component
 const LocalAccountForm = ({ onAccountCreated, onError, loading }) => {
   const [isLogin, setIsLogin] = useState(false);
@@ -280,15 +283,6 @@ const handleSubmit = async (e) => {
     </>
   );
 };
-
-const {
-  LoadingSpinner,
-  ErrorMessage,
-  InstructionPanel,
-  ProgressIndicator,
-  ServiceCard,
-  Modal
-} = SetupUIComponents;
 
 // Setup wizard configuration
 const SETUP_STEPS = [
